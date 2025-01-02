@@ -21,30 +21,31 @@ const companySchema = new mongoose.Schema({
         match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
     },
     
+   
     Password: {
-        type: String,
+        type: String, 
         required: true,
-        minlength: [8, 'Password must be at least 8 characters']
+        minlength: [8, 'Password must be at least 8 characters'],
+        select: false
+    
     },
-
     ConfirmPassword: {
         type: String,
         required: true,
         validate: {
             validator: function(v) {
-                return this.Password === v;
+                return v === this.Password;
             },
-            message: 'Passwords do not match'
+            message: 'Passwords must match'
         }
     },
-
 
     IndustryType: {
         type: String,
         required: [true, 'Industry type is required'],
         trim: true
     },
-    WhereisyourHeadquarterlocated: {
+    HeadquarterLocated: {
         type: String,
         required: [true, 'Headquarters location is required'],
         trim: true

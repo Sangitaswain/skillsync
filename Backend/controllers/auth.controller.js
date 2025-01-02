@@ -12,11 +12,11 @@ import { sendVerificationEmail, sendWelcomeEmail, sendResetPasswordEmail , sendP
 export const signup = async (req, res) => {
     console.log("Received signup request");
 
-    const { CompanyName, CompanyAdress, CompanyEmail, Password, ConfirmPassword, IndustryType, WhereisyourHeadquarterlocated, CompanySize, YearofEstablishment, FirstName, LastName, Designation, Email, PhoneNumber, TypicalRoles, AreasofExpertiseSought, Companylogo, CompanyWebsite, LinkedinProfile } = req.body;
+    const { CompanyName, CompanyAdress, CompanyEmail, Password, ConfirmPassword, IndustryType, HeadquarterLocated, CompanySize, YearofEstablishment, FirstName, LastName, Designation, Email, PhoneNumber, TypicalRoles, AreasofExpertiseSought, Companylogo, CompanyWebsite, LinkedinProfile } = req.body;
 
     try{
         console.log("Request body:", req.body);
-        if(!CompanyName || !CompanyAdress || !CompanyEmail || !Password || !ConfirmPassword || !IndustryType || !WhereisyourHeadquarterlocated || !CompanySize || !YearofEstablishment || !FirstName || !LastName || !Designation || !Email || !PhoneNumber || !TypicalRoles || !AreasofExpertiseSought){
+        if(!CompanyName || !CompanyAdress || !CompanyEmail || !Password || !ConfirmPassword || !IndustryType || !HeadquarterLocated || !CompanySize || !YearofEstablishment || !FirstName || !LastName || !Designation || !Email || !PhoneNumber || !TypicalRoles || !AreasofExpertiseSought){
             return res.status(400).json({msg: "All fields are required"});
         }
 
@@ -34,10 +34,10 @@ export const signup = async (req, res) => {
         }
 
         const hashedPassword = await bcryptjs.hash(Password, 10);
-        const hashedConfirmPassword = await bcryptjs.hash(ConfirmPassword, 10);
+        
         const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
         const company = new Company({
-            CompanyName, CompanyAdress, CompanyEmail, Password: hashedPassword, ConfirmPassword: hashedPassword, IndustryType, WhereisyourHeadquarterlocated, CompanySize, YearofEstablishment, FirstName, LastName, Designation, Email, PhoneNumber, TypicalRoles, AreasofExpertiseSought, Companylogo, CompanyWebsite, LinkedinProfile, 
+            CompanyName, CompanyAdress, CompanyEmail, Password: hashedPassword, ConfirmPassword: hashedPassword , IndustryType, HeadquarterLocated, CompanySize, YearofEstablishment, FirstName, LastName, Designation, Email, PhoneNumber, TypicalRoles, AreasofExpertiseSought, Companylogo, CompanyWebsite, LinkedinProfile, 
             verificationToken,
             verificationTokenExpire: Date.now() + 24 * 60 * 60 *1000
         }) 
@@ -66,8 +66,10 @@ export const signup = async (req, res) => {
 
 export const verifyEmail = async (req, res) => {
     const{code} = req.body;
+    console.log("Verification code received:", code);
     try{
         const company = await Company.findOne({verificationToken: code, verificationTokenExpire: {$gt: Date.now()}});
+        console.log("Company found:", company);
         if(!company){
             return res.status(400).json({success:false, msg: "Invalid or expired verification code"});
         }
@@ -86,15 +88,15 @@ export const verifyEmail = async (req, res) => {
         });
 
     }catch(error){
-        console.log(("error in verifyingEmail",error));
-        res.status(400).json({success:false, msg: "Server error"});
+        console.log("error in verifyingEmail",error);
+        res.status(500).json({success:false, msg: "Server error"});
     }
 };
 
 export const login = async (req, res) => {
     const {CompanyEmail, Password} = req.body;
     try {
-        const company = await Company.findOne({CompanyEmail});
+        const company = await Company.findOne({CompanyEmail}).select("+Password");
         if(!company){
             return res.status(400).json({success:false, msg: "Invalid credentials"});
         }
