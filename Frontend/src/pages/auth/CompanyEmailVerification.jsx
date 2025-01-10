@@ -58,9 +58,13 @@ const CompanyEmailVerification = () => {
         console.log(verificationCode);
         try {
             const response =await verifyCompanyEmail(verificationCode);
-            
+            console.log('Verification response:', response);
+            if (response && response.success) {
             toast.success("Email verified successfully");
-            navigate("/auth/company/dashboard", { replace: true });
+            navigate("/auth/company-dashboard", { replace: true });
+            } else {
+                toast.error("Failed to verify email");
+                }
         } catch (error) {
             console.error("Error details:", error.response?.data);
             toast.error(error.response?.data?.msg || "Error verifying email");

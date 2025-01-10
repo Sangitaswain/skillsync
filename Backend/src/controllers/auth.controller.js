@@ -360,8 +360,10 @@ export const verifyCompanyEmail = async (req, res) => {
 
 export const CompanyLogin = async (req, res) => {
     const {companyEmail, password} = req.body;
+    console.log("Received login request for email:", {companyEmail});
     try {
         const company = await Company.findOne({companyEmail}).select("+password");
+        console.log("Company found:", company);
         if(!company){
             return res.status(400).json({success:false, msg: "Invalid credentials"});
         }
@@ -376,7 +378,7 @@ export const CompanyLogin = async (req, res) => {
         await company.save();
 
         res.status(200).json({
-            sucess:true,
+            success:true,
             msg: "Logged in successfully",
             company: {
                 ...company._doc,

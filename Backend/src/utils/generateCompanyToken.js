@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+/*import jwt from "jsonwebtoken";
 
 export const generateCompanyTokenAndSetCookie = (res, companyid) => {
     const token = jwt.sign({ companyid }, process.env.JWT_SECRET_COMPANY, {
@@ -12,5 +12,32 @@ export const generateCompanyTokenAndSetCookie = (res, companyid) => {
         maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+    return token;
+};*/
+
+
+import jwt from "jsonwebtoken";
+
+export const generateCompanyTokenAndSetCookie = (res, companyid) => {
+    const token = jwt.sign({ companyid }, process.env.JWT_SECRET_COMPANY, {
+        expiresIn: "7d",
+    });
+
+    const cookieOptions = {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: "/",
+        signed: true,
+    };
+
+    // Only modify for development
+    if (process.env.NODE_ENV === "development") {
+        cookieOptions.secure = false;
+        cookieOptions.sameSite = "lax";
+    }
+
+    res.cookie("companyToken", token, cookieOptions);
     return token;
 };

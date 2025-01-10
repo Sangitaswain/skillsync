@@ -12,12 +12,24 @@ const app = express();
 const PORT = process.env.PORT;
 
 // Add CORS middleware
-app.use(cors({
+/*app.use(cors({
   origin: "http://localhost:5173", // Replace with your frontend's origin
   credentials: true,
+}));*/
+
+// Development CORS settings
+app.use(cors({
+    origin: true, // Allow all origins in development
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(cookieParser());
+// Enable pre-flight requests for all routes
+app.options('*', cors());
+
+app.use(cookieParser(process.env.COOKIE_SECRET));
+//app.use(cookieParser());
 
 app.use(express.json());
 app.use("/api/auth", authRoutes);

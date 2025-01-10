@@ -16,18 +16,36 @@ import useAuthStore from './store/authStore'
 
 
   // Protect routes for both types of users
-const ProtectedCompanyRoute = ({ children }) => {
-  const { isAuthenticated, company } = useAuthStore();
-  
-  if (!isAuthenticated) {
-      return <Navigate to="/auth/company-login" replace />;
-  }
-  
-  if (!company?.isVerified) {
-      return <Navigate to="/auth/verify-company-email" replace />;
-  }
-  
-  return children;
+  const ProtectedCompanyRoute = ({ children }) => {
+    const { isAuthenticated, company, isCheckingAuth } = useAuthStore();
+    
+    console.log('Protected Route State:', { 
+        isAuthenticated, 
+        hasCompany: !!company,
+        isVerified: company?.isVerified,
+        isCheckingAuth 
+    });
+    
+    if (isCheckingAuth) {
+        return null;
+    }
+
+    // If authenticated and verified, render children immediately
+    if (isAuthenticated && company?.isVerified) {
+        return children;
+    }
+
+    // Only redirect to login if not authenticated
+    if (!isAuthenticated) {
+        return <Navigate to="/auth/company-login" replace />;
+    }
+    
+    // Redirect to verification if authenticated but not verified
+    if (!company?.isVerified) {
+        return <Navigate to="/auth/verify-company-email" replace />;
+    }
+    
+    return children;
 };
 
 const ProtectedStudentRoute = ({ children }) => {
@@ -106,6 +124,7 @@ function App() {
               </ProtectedCompanyRoute>
           } />
           <Route path="/auth/verify-company-email" element={<CompanyEmailVerification />} />
+          
 
           {/* Student Routes */}
           <Route path="/auth/student-login" element={
