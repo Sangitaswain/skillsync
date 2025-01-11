@@ -1,12 +1,20 @@
+// Import JSON Web Token library for token verification
 import jwt from "jsonwebtoken";
 
+/**
+ * Middleware function to verify company authentication tokens
+ * This function checks for valid JWT tokens in either cookies or authorization header
+ */
 export const verifyCompanyToken = (req, res, next) => {
+    // Log incoming request headers and signed cookies for debugging
     console.log("Received headers:", req.headers);
-    console.log("Received cookies:", req.signedCookies);  // Changed to signedCookies
-    
+    console.log("Received cookies:", req.signedCookies);
+
+    // Extract token from either signed cookies or authorization header
     const token = req.signedCookies.companyToken || req.headers.authorization?.split(" ")[1];
     console.log("Received company token:", token);
 
+    // Check if token exists, return error if not found
     if (!token) {
         return res.status(401).json({
             success: false, 
@@ -15,9 +23,11 @@ export const verifyCompanyToken = (req, res, next) => {
     }
 
     try {
+        // Verify the token using company-specific secret
         const decoded = jwt.verify(token, process.env.JWT_SECRET_COMPANY);
         console.log("Decoded company token:", decoded);
 
+        // Ensure token contains required company ID
         if (!decoded || !decoded.companyid) {
             console.error("Invalid token structure:", decoded);
             return res.status(401).json({
@@ -26,16 +36,19 @@ export const verifyCompanyToken = (req, res, next) => {
             });
         }
 
+        // Add company ID to request object for use in subsequent middleware/routes
         req.company = {
             companyid: decoded.companyid  // Only pass the necessary data
         };
         
         console.log("Company ID being searched:", req.company.companyid);
-        next();
+        next(); // Proceed to next middleware/route handler
+
     } catch (error) {
+        // Log any token verification errors
         console.error("Token verification error:", error);
         
-        // More specific error responses
+        // Handle specific JWT error types with appropriate responses
         if (error instanceof jwt.JsonWebTokenError) {
             return res.status(401).json({
                 success: false,
@@ -50,13 +63,13 @@ export const verifyCompanyToken = (req, res, next) => {
             });
         }
 
+        // Generic error response for unexpected errors
         return res.status(500).json({
             success: false,
             msg: "Authentication error"
         });
     }
 };
-
 
 
 

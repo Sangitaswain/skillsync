@@ -1,22 +1,38 @@
+/**
+ * Authentication Store (useAuthStore.js)
+ * A Zustand store that manages authentication state and operations for both students and companies
+ * Handles login, signup, logout, email verification, and password reset functionality
+ */
+
 import { create } from "zustand";
 import axios from "axios";
 
+// Enable credentials in axios for handling cookies
 axios.defaults.withCredentials = true;
 
+// Set API URL based on environment
 const API_URL = import.meta.env.MODE === "development" ? "http://localhost:5005/api/auth" : "/api/auth";
 console.log("API_URL:", API_URL);
 
-const useAuthStore = create((set) => ({
-    // State for both user and company
-    user: null,
-    company: null,
-    isAuthenticated: false,
-    error: null,
-    isLoading: false,
-    isCheckingAuth: true,
-    message: null,
 
-    // User Authentication
+
+
+
+const useAuthStore = create((set) => ({
+    // Global state properties
+    user: null,                // Stores student user data
+    company: null,             // Stores company user data
+    isAuthenticated: false,    // Authentication status
+    error: null,              // Error message storage
+    isLoading: false,         // Loading state for async operations
+    isCheckingAuth: true,     // Initial auth check status
+    message: null,            // Success/info message storage
+
+    /**
+     * Student Authentication Methods
+     */
+    
+    // Register a new student account
     StudentSignup: async (formData) => {
         set({ isLoading: true, error: null });
         try {
@@ -28,6 +44,7 @@ const useAuthStore = create((set) => ({
         }
     },
 
+    // Login existing student
     StudentLogin: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
@@ -44,6 +61,7 @@ const useAuthStore = create((set) => ({
         }
     },
 
+    // Logout student user
     StudentLogout: async () => {
         set({ isLoading: true, error: null });
         try {
@@ -55,6 +73,7 @@ const useAuthStore = create((set) => ({
         }
     },
 
+    // Verify student email address
     verifystudentEmail: async (code) => {
         set({ isLoading: true, error: null });
         try {
@@ -67,7 +86,11 @@ const useAuthStore = create((set) => ({
         }
     },
 
-    // Company Authentication
+    /**
+     * Company Authentication Methods
+     */
+    
+    // Register a new company account
     CompanySignup: async (formData) => {
         set({ isLoading: true, error: null });
         try {
@@ -81,7 +104,8 @@ const useAuthStore = create((set) => ({
             console.log('Signup response:', response.data);
             set({ company: response.data.company, isAuthenticated: true, isLoading: false });
         } catch (error) {
-            console.error('Full error details:', {  // Expanded error logging
+            // Enhanced error logging for debugging
+            console.error('Full error details:', {
                 message: error.message,
                 response: error.response?.data,
                 status: error.response?.status,
@@ -92,7 +116,7 @@ const useAuthStore = create((set) => ({
         }
     },
 
-
+    // Login existing company
     CompanyLogin: async (companyEmail, password) => {
         set({ isLoading: true, error: null });
         try {
@@ -134,34 +158,34 @@ const useAuthStore = create((set) => ({
             throw error;
         }
     },
-    
-   
 
+    // Logout company user
     CompanyLogout: async () => {
         set({ isLoading: true, error: null });
         try {
             const response = await axios.post(`${API_URL}/company-logout`, {}, {
                 withCredentials: true
-                });
+            });
 
-                if (response && response.data) {
-                    set({ company: null, isAuthenticated: false,error : null, isLoading: false });
-                    return true;
-                }else {
-                    throw new Error("Error logging out");
-                }
+            if (response && response.data) {
+                set({ company: null, isAuthenticated: false, error: null, isLoading: false });
+                return true;
+            } else {
+                throw new Error("Error logging out");
+            }
         } catch (error) {
             set({ error: error.response?.data?.message || "Error logging out", isLoading: false });
             throw error;
         }
     },
 
+    // Verify company email address
     verifyCompanyEmail: async (code) => {
         set({ isLoading: true, error: null });
         try {
             const response = await axios.post(`${API_URL}/verify-company-email`, 
                 { code },
-                { withCredentials: true }  // Add this configuration object
+                { withCredentials: true }
             );
             console.log("Verification response:", response);
     
@@ -181,29 +205,33 @@ const useAuthStore = create((set) => ({
             set({ isLoading: false });
         }
     },
-    // Common Authentication Checks
+
+    /**
+     * Authentication Check Methods
+     */
+    
+    // Verify student authentication status
     studentcheckAuth: async () => {
         set({ isCheckingAuth: true, error: null });
         try {
-            
             const response = await axios.get(`${API_URL}/student-check-auth`);
-    
-
             set({ user: response.data.newUser, isAuthenticated: true, isCheckingAuth: false });
         } catch (error) {
             set({ 
-                user:null ,
+                user: null,
                 error: error.response?.data?.message || "Authentication failed", 
                 isCheckingAuth: false, 
-                isAuthenticated: false });
+                isAuthenticated: false 
+            });
         }
     },
 
+    // Verify company authentication status
     companycheckAuth: async () => {
         set({ isCheckingAuth: true, error: null });
         try {
             const response = await axios.get(`${API_URL}/company-check-auth`, {
-                withCredentials: true  // Important: Add this
+                withCredentials: true
             });
             
             console.log('Auth check response:', response.data);
@@ -239,8 +267,11 @@ const useAuthStore = create((set) => ({
         }
     },
 
-
-    // Password Reset Functions
+    /**
+     * Password Reset Methods
+     */
+    
+    // Request password reset for student
     studentforgotPassword: async (email) => {
         set({ isLoading: true, error: null });
         try {
@@ -255,6 +286,7 @@ const useAuthStore = create((set) => ({
         }
     },
 
+    // Request password reset for company
     companyforgotPassword: async (companyEmail) => {
         set({ isLoading: true, error: null });
         try {
@@ -269,6 +301,7 @@ const useAuthStore = create((set) => ({
         }
     },
 
+    // Reset student password with token
     studentresetPassword: async (token, password) => {
         set({ isLoading: true, error: null });
         try {
@@ -283,6 +316,7 @@ const useAuthStore = create((set) => ({
         }
     },
 
+    // Reset company password with token
     companyresetPassword: async (token, password) => {
         set({ isLoading: true, error: null });
         try {

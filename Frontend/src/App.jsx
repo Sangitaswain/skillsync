@@ -62,7 +62,7 @@ const ProtectedStudentRoute = ({ children }) => {
   return children;
 };
 
-// Redirect authenticated users based on type
+// Redirect authenticated company based on type
 const RedirectAuthenticatedCompany = ({ children }) => {
   const { isAuthenticated, company } = useAuthStore();
   
