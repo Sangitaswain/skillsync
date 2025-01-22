@@ -9,7 +9,8 @@ import crypto from "crypto";
 // Import utility functions for token generation and email sending
 import { generateUserTokenAndSetCookie } from "../utils/generateUserToken.js";
 import { generateCompanyTokenAndSetCookie } from "../utils/generateCompanyToken.js";
-import { sendUserVerificationEmail, sendUserWelcomeEmail, sendUserPasswordResetEmail, sendUserPasswordResetSuccessEmail, sendCompanyVerificationEmail, sendCompanyWelcomeEmail, sendCompanyPasswordResetEmail, sendCompanyPasswordResetSuccessEmail  } from "../mailtrap/emails.js";
+//import { sendUserVerificationEmail, sendUserWelcomeEmail, sendUserPasswordResetEmail, sendUserPasswordResetSuccessEmail, sendCompanyVerificationEmail, sendCompanyWelcomeEmail, sendCompanyPasswordResetEmail, sendCompanyPasswordResetSuccessEmail  } from "../mailtrap/emails.js";
+import transporter from "../../nodemailer/nodemailer.config.js";
 
 
 
@@ -261,41 +262,52 @@ export const studentcheckAuth = async (req, res) => {
 // Company Authentication Controllers
 
 // Handle company registration
+// Company Signup Controller
 export const CompanySignup = async (req, res) => {
-    console.log("Received signup request");
-
-    const { companyName, companyPhoneNumber, companyEmail, password, confirmPassword, industryType, headquarterLocation, companySize, yearOfEstablishment, pointOfContactFirstName, pointOfContactLastName, pointOfContactDesignation, pointOfContactEmail, pointOfContactPhoneNumber, jobRoles, areasOfExpertiseSought, companyLogo, companyWebsite, linkedInProfile } = req.body;
+    const { 
+        companyName, companyPhoneNumber, companyEmail, 
+        password, confirmPassword, industryType, 
+        headquarterLocation, companySize, yearOfEstablishment,
+        pointOfContactFirstName, pointOfContactLastName,
+        pointOfContactDesignation, pointOfContactEmail,
+        pointOfContactPhoneNumber, jobRoles,
+        areasOfExpertiseSought, companyWebsite, linkedInProfile 
+    } = req.body;
 
     try {
-        // Validate required fields
-        console.log("Request body:", req.body);
-        if (!companyName || !companyPhoneNumber || !companyEmail || !password || !confirmPassword || !industryType || !headquarterLocation || !companySize || !yearOfEstablishment || !pointOfContactFirstName || !pointOfContactLastName || !pointOfContactDesignation || !pointOfContactEmail || !pointOfContactPhoneNumber || !jobRoles || !areasOfExpertiseSought || !companyWebsite || !linkedInProfile) {
-            return res.status(400).json({ msg: "All fields are required" });
+        // Basic validation
+        if (!companyName || !companyPhoneNumber || !companyEmail || !password || !confirmPassword) {
+            return res.status(400).json({ message: "All fields are required" });
         }
 
         if (password !== confirmPassword) {
             return res.status(400).json({
                 success: false,
-                msg: "Passwords do not match",
+                message: "Passwords do not match",
             });
         }
 
-        // Check if company already exists
-        const companyAlreadyExists = await Company.findOne({ companyEmail });
-        if (companyAlreadyExists) {
-            return res.status(400).json({ success: false, msg: "Company already exists" });
+        // Check if company exists
+        const companyExists = await Company.findOne({ companyEmail });
+        if (companyExists) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Company already registered" 
+            });
         }
 
-        // Hash password and create verification token
-        const salt = await bcryptjs.genSalt(10);
-        const hashedPassword = await bcryptjs.hash(password, salt);
+        // Generate verification OTP
         const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // Parse JSON strings for job roles and expertise
+        // Hash password
+        const salt = await bcryptjs.genSalt(10);
+        const hashedPassword = await bcryptjs.hash(password, salt);
+
+        // Parse JSON fields
         const parsedJobRoles = JSON.parse(jobRoles);
         const parsedExpertise = JSON.parse(areasOfExpertiseSought);
 
-        // Create new company in database
+        // Create new company
         const company = new Company({
             companyName,
             companyPhoneNumber,
@@ -313,90 +325,187 @@ export const CompanySignup = async (req, res) => {
             pointOfContactPhoneNumber,
             jobRoles: parsedJobRoles,
             areasOfExpertiseSought: parsedExpertise,
-            companyLogo,
             companyWebsite,
             linkedInProfile,
             verificationToken,
-            verificationTokenExpire: Date.now() + 24 * 60 * 60 * 1000,
+            verificationTokenExpire: Date.now() + 10 * 60 * 1000, // 10 minutes expiry
         });
 
         await company.save();
 
-        // Generate JWT and send verification emails
-        generateCompanyTokenAndSetCookie(res,company._id);
+        // Send welcome email
+        const welcomeMailOptions = {
+            from: process.env.SENDER_EMAIL,
+            to: company.companyEmail,
+            subject: 'Welcome to SkillSync!',
+            text: `Dear ${company.companyName},\n\n` +
+                  `Welcome to SkillSync! We're excited to have you join our platform.\n\n` +
+                  `At SkillSync, we're dedicated to helping companies like yours find the perfect talent.\n\n` +
+                  `To get started, please verify your email address using the verification code we've sent in a separate email.\n\n` +
+                  `Best regards,\nSkillSync Team`
+        };
 
-        await sendCompanyVerificationEmail( companyEmail,verificationToken);
-        await sendCompanyWelcomeEmail(company.companyEmail, company.companyName, company.pointOfContactFirstName, company.pointOfContactEmail);
+        // Send OTP email
+        const otpMailOptions = {
+            from: process.env.SENDER_EMAIL,
+            to: company.companyEmail,
+            subject: 'SkillSync - Email Verification Code',
+            text: `Dear ${company.companyName},\n\n` +
+                  `Your email verification code is: ${verificationToken}\n\n` +
+                  `This code will expire in 10 minutes.\n\n` +
+                  `If you did not request this code, please ignore this email.\n\n` +
+                  `Best regards,\nSkillSync Team`
+        };
 
-        res.status(201).json({success:true, msg: "Company created successfully",
+        // Send both emails
+        await Promise.all([
+            transporter.sendMail(welcomeMailOptions),
+            transporter.sendMail(otpMailOptions)
+        ]);
+
+        // Set authentication token
+        generateCompanyTokenAndSetCookie(res, company._id);
+
+        // Return success without sensitive data
+        res.status(201).json({
+            success: true,
+            message: "Company registered successfully. Please check your email for verification code.",
             company: {
                 ...company._doc,
                 password: undefined,
                 confirmPassword: undefined,
+                verificationToken: undefined
             }
         });
 
-    }catch(error){
-        res.status(400).json({success:false, msg: error.message});
+    } catch(error) {
+        console.error("Signup error:", error);
+        res.status(400).json({ 
+            success: false, 
+            message: error.message || "Registration failed" 
+        });
+    }
+};
+
+// Verify Company Email
+export const verifyCompanyEmail = async (req, res) => {
+    try {
+        const { code } = req.body;
+
+        if (!code) {
+            return res.status(400).json({
+                success: false,
+                message: "Verification code is required"
+            });
+        }
+
+        // Find company with valid token
+        const company = await Company.findOne({ 
+            verificationToken: code,
+            verificationTokenExpire: { $gt: Date.now() }
+        });
+
+        if (!company) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid or expired verification code"
+            });
+        }
+
+        // Update verification status
+        company.isVerified = true;
+        company.verificationToken = undefined;
+        company.verificationTokenExpire = undefined;
+        await company.save();
+
+        // Send verification success email
+        const verificationSuccessEmail = {
+            from: process.env.SENDER_EMAIL,
+            to: company.companyEmail,
+            subject: 'SkillSync - Account Verified Successfully',
+            text: `Dear ${company.companyName},\n\n` +
+                  `Your email has been successfully verified!\n\n` +
+                  `You now have full access to all SkillSync features. Get started by:\n` +
+                  `- Completing your company profile\n` +
+                  `- Posting your first job\n` +
+                  `- Exploring available talent\n\n` +
+                  `If you need any assistance, our support team is here to help.\n\n` +
+                  `Best regards,\nSkillSync Team`
+        };
+
+        await transporter.sendMail(verificationSuccessEmail);
+
+        res.status(200).json({
+            success: true,
+            message: "Email verified successfully"
+        });
+
+    } catch (error) {
+        console.error("Verification error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Verification failed"
+        });
     }
 };
 
 
 
 
-
-
-// Verify company email address
-export const verifyCompanyEmail = async (req, res) => {
-    console.log("Request body:", req.body);
-    const { code } = req.body;
-    console.log("Verification token lookup:", { code });
-    
-    console.log("Received code:", code);
-    if (!code) {
-        return res.status(400).json({ success: false, msg: "Verification code is required" });
-    }
-    console.log("Verification code received:", code);
+// Resend OTP if needed
+export const resendcompanyVerificationOTP = async (req, res) => {
     try {
-        // Find company with valid verification token
-        const company = await Company.findOne({ verificationToken: code, verificationTokenExpire: { $gt: Date.now() } });
-        console.log("Company found:", company);
+        const { companyEmail } = req.body;
+
+        const company = await Company.findOne({ companyEmail });
         if (!company) {
-            return res.status(400).json({ success: false, msg: "Invalid or expired verification code" });
+            return res.status(404).json({
+                success: false,
+                message: "Company not found"
+            });
         }
 
-        // Update company verification status
-        company.isVerified = true;
-        company.verificationToken = undefined;
-        company.verificationTokenExpire = undefined;
+        // Generate new OTP
+        const newToken = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Update company with new token
+        company.verificationToken = newToken;
+        company.verificationTokenExpire = Date.now() + 10 * 60 * 1000;
         await company.save();
 
-        console.log("Company marked as verified:", company);
+        // Send new OTP email
+        const mailOptions = {
+            from: process.env.SENDER_EMAIL,
+            to: company.companyEmail,
+            subject: 'SkillSync - New Verification OTP',
+            text: `Dear ${company.companyName},\n\n` +
+                  `Your new verification OTP is: ${newToken}\n\n` +
+                  `This OTP will expire in 10 minutes.\n\n` +
+                  `Best regards,\nSkillSync Team`
+        };
 
-        await sendCompanyWelcomeEmail(company.companyEmail, company.companyName, company.pointOfContactEmail, company.pointOfContactFirstName);
-
-        generateCompanyTokenAndSetCookie(res, company._id);
+        await transporter.sendMail(mailOptions);
 
         res.status(200).json({
-            success: true, msg: "Email verified successfully",
-            company: {
-                ...company._doc,
-                password: undefined,
-            }
+            success: true,
+            message: "New verification OTP sent successfully"
         });
 
     } catch (error) {
-        console.log("error in verifyingEmail", error);
-        res.status(500).json({ success: false, msg: "Server error" });
+        console.error("Resend OTP error:", error);
+        res.status(400).json({
+            success: false,
+            message: "Failed to resend OTP"
+        });
     }
-}
-
-
-
+};
 
 // Handle company login
 export const CompanyLogin = async (req, res) => {
     const {companyEmail, password} = req.body;
+    if (!companyEmail || !password) {
+        return res.status(400).json({ success: false, msg: "All fields are required" });
+        }
     console.log("Received login request for email:", {companyEmail});
     try {
         // Find company and verify password
@@ -438,39 +547,56 @@ export const CompanyLogin = async (req, res) => {
 
 // Handle company logout
 export const CompanyLogout = async (req, res) => {
-    res.clearCookie("companyToken");
+  
+    res.clearCookie("companytoken");
     res.status(200).json({success:true, msg: "Logged out successfully"});  
 };
 
 
 // Handle company forgot password request
 export const companyforgotPassword = async (req, res) => {
-    const {companyEmail} = req.body;
+    const { companyEmail } = req.body;
     console.log("Received forgot password request for email:", companyEmail); 
-    try{
+    try {
         // Find company by email
-        const company = await Company.findOne({companyEmail});
+        const company = await Company.findOne({ companyEmail });
         console.log("Company found:", company); 
         
-        if(!company){
-            return res.status(400).json({success:false, msg: "Company not found"});
+        if (!company) {
+            return res.status(400).json({ success: false, msg: "Company not found" });
         }
         // Generate reset token valid for 10 minutes
         const resetToken = crypto.randomBytes(20).toString("hex");
-        const restTokenExpire = Date.now() + 10 * 60 * 1000;
+        const resetTokenExpire = Date.now() + 10 * 60 * 1000;
 
         company.resetPasswordToken = resetToken;
-        company.resetPasswordExpire = restTokenExpire;
+        company.resetPasswordExpire = resetTokenExpire;
 
         await company.save();
 
-        // Send password reset email
-        await sendCompanyPasswordResetEmail(company.companyEmail, `${process.env.CLIENT_URL}/reset-password/${resetToken}`);
-        res.status(200).json({success:true, msg: "Reset password email sent successfully"});
+        // Modified reset link to ensure proper URL construction
+        const resetLink = `${process.env.CLIENT_URL}/auth/company-reset-password/${resetToken}`;  // Modified this line
+        
+        const mailOptions = {
+            from: process.env.SENDER_EMAIL,
+            to: company.companyEmail,
+            subject: 'SkillSync - Reset Password',
+            text: `Dear ${company.companyName},\n\n` +
+                  `Click the following link to reset your password:\n` +
+                  `${resetLink}\n\n` +
+                  `This link will expire in 10 minutes.\n\n` +
+                  `If you did not request this, please ignore this email.\n\n` +
+                  `Best regards,\nSkillSync Team`
+        };
 
-    }catch(error){
+        console.log("Sending reset password email with link:", resetLink); // Add this for debugging
+        
+        await transporter.sendMail(mailOptions);
+        res.status(200).json({ success: true, msg: "Reset password email sent successfully" });
+
+    } catch (error) {
         console.log("Error in forgot password", error);
-        res.status(400).json({success:false, msg: error.message});
+        res.status(400).json({ success: false, msg: error.message });
     }
 };
 
@@ -482,31 +608,58 @@ export const companyresetPassword = async (req, res) => {
         const {token} = req.params;
         const {password} = req.body;
 
-        // Find company with valid reset token
-        const company = await Company.findOne({resetPasswordToken: token,
+        if (!password) {
+            return res.status(400).json({
+                success: false, 
+                msg: "Password is required"
+            });
+        }
+
+        const company = await Company.findOne({
+            resetPasswordToken: token,
             resetPasswordExpire: {$gt: Date.now()}
         });
 
         if(!company){
-            return res.status(400).json({success:false, msg: "Invalid or expired reset token"});
+            return res.status(400).json({
+                success: false, 
+                msg: "Invalid or expired reset token"
+            });
         }
 
         // Update password and clear reset token
         const hashedPassword = await bcryptjs.hash(password, 10);
         company.password = hashedPassword;
+        company.confirmPassword = hashedPassword; // Add this if you store confirmPassword
         company.resetPasswordToken = undefined;
         company.resetPasswordExpire = undefined;
         await company.save();
 
-        await sendCompanyPasswordResetSuccessEmail(company.companyEmail);
+        // Send success email
+        const mailOptions = {
+            from: process.env.SENDER_EMAIL,
+            to: company.companyEmail,
+            subject: 'SkillSync - Password Reset Successful',
+            text: `Dear ${company.companyName},\n\n` +
+                  `Your password has been successfully reset.\n\n` +
+                  `If you did not make this change, please contact support immediately.\n\n` +
+                  `Best regards,\nSkillSync Team`
+        };
 
-        res.status(200).json({success:true, msg: "Password reset successfully"});
-    }catch(error){
-        console.log("Error in reset password", error);
-        res.status(400).json({success:false, msg: error.message});
+        await transporter.sendMail(mailOptions);
+
+        res.status(200).json({
+            success: true, 
+            msg: "Password reset successfully"
+        });
+    } catch(error) {
+        console.error("Error in reset password:", error);
+        res.status(400).json({
+            success: false, 
+            msg: "Failed to reset password"
+        });
     }
 };
-
 
 
 // Check company authentication status

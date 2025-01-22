@@ -11,7 +11,7 @@ export const verifyCompanyToken = (req, res, next) => {
     console.log("Received cookies:", req.signedCookies);
 
     // Extract token from either signed cookies or authorization header
-    const token = req.signedCookies.companyToken || req.headers.authorization?.split(" ")[1];
+    const token = req.signedCookies.companytoken || req.headers.authorization?.split(" ")[1];
     console.log("Received company token:", token);
 
     // Check if token exists, return error if not found
@@ -66,10 +66,12 @@ export const verifyCompanyToken = (req, res, next) => {
         // Generic error response for unexpected errors
         return res.status(500).json({
             success: false,
-            msg: "Authentication error"
+            msg: "Internal server error"
         });
     }
 };
+
+export default verifyCompanyToken;
 
 
 

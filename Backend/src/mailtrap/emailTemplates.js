@@ -1,4 +1,4 @@
-export const VERIFICATION_EMAIL_TEMPLATE = `
+/*export const VERIFICATION_EMAIL_TEMPLATE = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -92,4 +92,4 @@ export const PASSWORD_RESET_REQUEST_TEMPLATE = `
   </div>
 </body>
 </html>
-`;
+`;*/

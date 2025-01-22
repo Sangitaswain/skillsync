@@ -180,31 +180,83 @@ const useAuthStore = create((set) => ({
     },
 
     // Verify company email address
+    // In useAuthStore.js
     verifyCompanyEmail: async (code) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await axios.post(`${API_URL}/verify-company-email`, 
+            const response = await axios.post(
+                `${API_URL}/verify-company-email`, 
                 { code },
                 { withCredentials: true }
             );
-            console.log("Verification response:", response);
+            
+            console.log("Verification response:", response.data); // For debugging
     
-            if (response && response.data) {
+            if (response.data.success) {
                 set({ 
-                    company: response.data.company, 
-                    isAuthenticated: true, 
-                    isLoading: false 
+                    company: {
+                        ...response.data.company,
+                        isVerified: true
+                    },
+                    
+                    isAuthenticated: true,
+                    isLoading: false,
+                    error: null
                 });
                 return response.data;
             }
+            throw new Error(response.data.msg || "Verification failed");
         } catch (error) {
             const errorMsg = error.response?.data?.msg || "Error verifying email";
             set({ error: errorMsg, isLoading: false });
-            throw new Error(errorMsg);
-        } finally {
-            set({ isLoading: false });
+            throw error;
         }
     },
+    
+
+    // Resend verification OTP for company
+    resendVerificationOTP: async (companyEmail) => {
+        set({ isLoading: true, error: null });
+        try {
+            const response = await axios.post(
+                `${API_URL}/send-verify-otp`, 
+                { companyEmail },
+                { 
+                    withCredentials: true,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                }
+            );
+
+            console.log('Resend OTP response:', response.data);
+
+            if (response.data.success) {
+                set({ 
+                    message: response.data.msg || "Verification code sent successfully",
+                    isLoading: false,
+                    error: null 
+                });
+                return response.data;
+            } else {
+                throw new Error(response.data.msg || "Failed to send verification code");
+            }
+        } catch (error) {
+            console.error('Resend OTP error:', {
+                status: error.response?.status,
+                data: error.response?.data,
+                message: error.message
+            });
+            
+            set({ 
+                error: error.response?.data?.msg || "Failed to send verification code",
+                isLoading: false 
+            });
+            throw error;
+        }
+    },
+
+
 
     /**
      * Authentication Check Methods
@@ -238,7 +290,10 @@ const useAuthStore = create((set) => ({
             
             if (response.data.success && response.data.company) {
                 set({ 
-                    company: response.data.company, 
+                    company: {
+                        ...response.data.company, 
+                        isVerified: response.data.company.isVerified || false
+                    },
                     isAuthenticated: true, 
                     isCheckingAuth: false,
                     error: null
@@ -320,7 +375,7 @@ const useAuthStore = create((set) => ({
     companyresetPassword: async (token, password) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await axios.post(`${API_URL}/company-reset-password/${token}`, { password });
+            const response = await axios.post(`${API_URL}/company-reset-password/${token}`, { password }, {withCredentials: true});
             set({ message: response.data.message, isLoading: false });
         } catch (error) {
             set({

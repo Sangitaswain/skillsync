@@ -6,7 +6,7 @@ import cors from "cors";
 import { connectDB } from "./lib/db.js";
 import authRoutes from "./routes/auth.route.js";
 
-dotenv.config();
+dotenv.config({path: '../.env'});
 
 const app = express();
 const PORT = process.env.PORT;
@@ -16,6 +16,17 @@ const PORT = process.env.PORT;
   origin: "http://localhost:5173", // Replace with your frontend's origin
   credentials: true,
 }));*/
+
+// Production CORS settings
+/*app.use(cors({
+  origin: process.env.FRONTEND_ORIGIN,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));*/
+
+
+//app.use(cors({vredentials:true}))
 
 // Development CORS settings
 app.use(cors({

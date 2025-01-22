@@ -174,7 +174,7 @@ const CompanyLogin = () => {
                             {/* Forgot password link */}
                             <div className="flex justify-end mt-2">
                                 <Link 
-                                    to="/auth/forgot-password"
+                                    to="/auth/company-forgot-password"
                                     className="text-sm text-[#1F479A] hover:underline"
                                 >
                                     Forgot Password?

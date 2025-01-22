@@ -12,6 +12,8 @@ import { Toaster } from 'react-hot-toast';
 import CompanyDashboard from './pages/CompanyDashboard'
 import StudentEmailVerification from './pages/auth/StudentEmailVerification'
 import CompanyEmailVerification from './pages/auth/CompanyEmailVerification'
+import CompanyForgotPassword from './pages/auth/CompanyForgotPassword'
+import CompanyResetPassword from './pages/auth/CompanyResetPassword'
 import useAuthStore from './store/authStore'
 
 
@@ -124,7 +126,11 @@ function App() {
               </ProtectedCompanyRoute>
           } />
           <Route path="/auth/verify-company-email" element={<CompanyEmailVerification />} />
+  
+          <Route path="/auth/company-forgot-password" element={<CompanyForgotPassword />} />
+          <Route path="/auth/company-reset-password/:token" element={<CompanyResetPassword />} />
           
+            
 
           {/* Student Routes */}
           <Route path="/auth/student-login" element={

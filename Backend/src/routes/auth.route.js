@@ -1,5 +1,5 @@
 import express from "express";
-import { StudentSignup,verifystudentEmail, StudentLogin, StudentLogout, studentforgotPassword, studentresetPassword, studentcheckAuth,  CompanySignup , verifyCompanyEmail, CompanyLogin , CompanyLogout, companyforgotPassword , companyresetPassword, companycheckAuth} from "../controllers/auth.controller.js";
+import { StudentSignup,verifystudentEmail, StudentLogin, StudentLogout, studentforgotPassword, studentresetPassword, studentcheckAuth,  CompanySignup ,resendcompanyVerificationOTP,CompanyLogin , CompanyLogout, companyforgotPassword , companyresetPassword, companycheckAuth, verifyCompanyEmail} from "../controllers/auth.controller.js";
 import { verifyUserToken } from "../middleware/verifyUserToken.js";
 import { verifyCompanyToken } from "../middleware/verifyCompanyToken.js";
 
@@ -16,6 +16,7 @@ router.post("/student-reset-password/:token", studentresetPassword);
 router.get("/student-check-auth", verifyUserToken, studentcheckAuth);
 
 router.post("/company-signup", CompanySignup);
+router.post("/send-resend-otp", resendcompanyVerificationOTP);
 router.post("/verify-company-email",verifyCompanyEmail);
 router.post("/company-login", CompanyLogin);
 router.post("/company-logout", CompanyLogout);
