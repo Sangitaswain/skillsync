@@ -14,6 +14,8 @@ import StudentEmailVerification from './pages/auth/StudentEmailVerification'
 import CompanyEmailVerification from './pages/auth/CompanyEmailVerification'
 import CompanyForgotPassword from './pages/auth/CompanyForgotPassword'
 import CompanyResetPassword from './pages/auth/CompanyResetPassword'
+import StudentForgotPassword from './pages/auth/StudentForgotPassword'
+import StudentResetPassword from './pages/auth/StudentResetPassword'
 import useAuthStore from './store/authStore'
 
 
@@ -149,6 +151,8 @@ function App() {
               </ProtectedStudentRoute>
           } />
           <Route path="/auth/verify-student-email" element={<StudentEmailVerification />} />
+          <Route path="/auth/student-forgot-password" element={<StudentForgotPassword />} />
+          <Route path="/auth/student-reset-password/:token" element={<StudentResetPassword />} />
 
           {/* Catch all route */}
           <Route path="*" element={<Navigate to="/" replace />} />

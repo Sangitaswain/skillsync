@@ -10,7 +10,7 @@ const CompanyEmailVerification = () => {
     const [canResend, setCanResend] = useState(false);
     const inputRefs = useRef([]);
     const navigate = useNavigate();
-    const { error, isLoading, verifyCompanyEmail, resendVerificationOTP, company} = useAuthStore();
+    const { error, isLoading, verifyCompanyEmail, resendcompanyVerificationOTP, company} = useAuthStore();
 
     // Timer for OTP expiry
     useEffect(() => {
@@ -85,7 +85,7 @@ const CompanyEmailVerification = () => {
     // Handle resend OTP
     const handleResendOTP = async () => {
         try {
-            const response = await resendVerificationOTP(company.companyEmail);
+            const response = await resendcompanyVerificationOTP(company.companyEmail);
             if (response.success) {
                 toast.success("New verification code sent successfully");
                 setTimeLeft(600); // Reset timer to 10 minutes

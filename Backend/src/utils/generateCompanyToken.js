@@ -26,31 +26,6 @@ export const generateCompanyTokenAndSetCookie = (res, companyid) => {
         expiresIn: "15d",
     });
 
-
-
-  /*  res.cookie("companytoken", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production" ? "none" : "strict",
-        sameSite: "strict",
-        maxAge: 15 * 24 * 60 * 60 * 1000,
-    });
-};
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     const cookieOptions = {
         httpOnly: true,
         secure: true,
@@ -69,3 +44,16 @@ export const generateCompanyTokenAndSetCookie = (res, companyid) => {
     res.cookie("companytoken", token, cookieOptions);
     return token;
 }; 
+
+
+
+
+
+  /*  res.cookie("companytoken", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production" ? "none" : "strict",
+        sameSite: "strict",
+        maxAge: 15 * 24 * 60 * 60 * 1000,
+    });
+};
+*/

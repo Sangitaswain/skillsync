@@ -61,18 +61,41 @@ export const StudentSignup = async (req, res) => {
         });
         await newUser.save();
 
+        // send welcome email
+        const welcomeMailOptions = {
+            from: process.env.SENDER_EMAIL,
+            to: newUser.email,
+            subject: 'Welcome to SkillSync!',
+            text: `Hello ${newUser.first_Name},\n\nWelcome to SkillSync! We're excited to have you join our platform.\n\nAt SkillSync, we're dedicated to helping students like you find the perfect job.\n\nTo get started, please verify your email address using the verification code we've sent in a separate email.\n\nBest regards,\nSkillSync Team`
+        };
+
+        // Send OTP email
+        const otpMailOptions = {
+            from: process.env.SENDER_EMAIL,
+            to: newUser.email,
+            subject: 'SkillSync - Email Verification Code',
+            text: `Hello ${newUser.first_Name},\n\nYour verification code is ${verificationToken}\n\n
+            This code will expire in 24 hours.\n\nIf you did not request this code, please ignore this email.\n\nBest regards,\nSkillSync Team`
+        };
+
+        // Send both emails
+        await Promise.all([
+            transporter.sendMail(welcomeMailOptions),
+            transporter.sendMail(otpMailOptions)
+        ]);
+
         // Generate JWT and send verification emails
         generateUserTokenAndSetCookie(res,newUser._id);
 
-        await sendUserVerificationEmail(newUser.email, newUser.verificationToken);
-        await sendUserWelcomeEmail(newUser.email, newUser.first_Name, newUser.last_Name);
+      
 
-        res.status(201).json({ success: true, message: "User created successfully",
+        res.status(201).json({ success: true, user :newUser ,message: "User created successfully",
             newUser: {
                 ...newUser._doc,
             _id:newUser._id,
             password: undefined,
             confirm_Password: undefined,
+            verificationToken: undefined
             }
             
         });
@@ -87,46 +110,90 @@ export const StudentSignup = async (req, res) => {
 
 // Verify student email address
 export const verifystudentEmail = async (req, res) => {
-    const { code } = req.body;
-    console.log("Verification code received:", code);
     try {
-        // Find user with valid verification token
-        const newUser = await User.findOne({ verificationToken: code, verificationTokenExpire: { $gt: Date.now() } });
-        console.log("User found in verifyEmail:", newUser);
-        if (!newUser) {
+        const { code } = req.body;
+        if (!code) {
+            return res.status(400).json({ success: false, msg: "Verification code is required" });
+        }
+        const user = await User.findOne({ verificationToken: code, verificationTokenExpire: { $gt: Date.now() } });
+        if (!user) {
             return res.status(400).json({ success: false, msg: "Invalid or expired verification code" });
         }
+        // Update user document
+   
         // Update user verification status
-        newUser.isVerified = true;
-        newUser.verificationToken = undefined;
-        newUser.verificationTokenExpire = undefined;
-        await newUser.save();
+        user.isVerified = true;
+        user.verificationToken = undefined;
+        user.verificationTokenExpire = undefined;
+        await user.save();
 
-        generateUserTokenAndSetCookie(res, newUser._id);
+        const verificationSuccessEmail = {
+            from: process.env.SENDER_EMAIL,
+            to: user.email,
+            subject: 'SkillSync - Account Verified Successfully',
+            text: `Your email address has been verified successfully. You can now login to your SkillSync
+            account and start exploring job opportunities.`
+        };
 
-        await sendUserWelcomeEmail(newUser.email, newUser.first_Name, newUser.last_Name);
-
+        await transporter.sendMail(verificationSuccessEmail);
         res.status(200).json({
             success: true, msg: "Email verified successfully",
-            
-            newUser: {
-                ...newUser._doc,
-                password: undefined,
-            }
         });
+        } catch (error) {
+            console.error("Verification error:", error);
+            res.status(500).json({
+                success: false,
+                msg: "Verification failed"
+            });
+        }
+    };
 
+
+
+
+// Resend OTP if needed
+export const resendstudentVerificationOTP = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const newUser = await User.findOne({ email });
+        if (!newUser) {
+            return res.status(404).json({
+                success: false,
+                msg: "User not found"
+            });
+            }
+        const newToken = Math.floor(100000 + Math.random() * 900000).toString();
+        newUser.verificationToken = newToken;
+        newUser.verificationTokenExpire = Date.now() + 10 * 60 * 1000;
+        await newUser.save();
+        const mailOptions = {
+            from: process.env.SENDER_EMAIL,
+            to: newUser.email,
+            subject: 'SkillSync - New Verification OTP',
+            text: `Hello ${newUser.first_Name},\n\nYour new verification OTP is: ${newToken}\n\n
+            This OTP will expire in 10 minutes.\n\nBest regards,\nSkillSync Team`
+        };
+        await transporter.sendMail(mailOptions);
+        res.status(200).json({
+            success: true,
+            msg: "New verification OTP sent successfully"
+        });
     } catch (error) {
-        console.log("error in verifyingEmail", error);
-        res.status(500).json({ success: false, msg: "Server error" });
+        console.error("Resend OTP error:", error);
+        res.status(400).json({
+            success: false,
+            msg: "Failed to resend OTP"
+        });
     }
 };
-
-
-
 
 // Handle student login
 export const StudentLogin = async (req, res) => {
     const {email, password} = req.body;
+    if (!email || !password) {
+        return res.status(400).json({ success: false, msg: "All fields are required" });
+        }
+    console.log("Received login request for email:", {email});
     try {
         // Find user and verify password
         const newUser = await User.findOne({email}).select("+password");
@@ -145,12 +212,13 @@ export const StudentLogin = async (req, res) => {
         await newUser.save();
 
         res.status(200).json({
-            sucess:true,
+            success:true,
             msg: "Logged in successfully",
             newUser: {
                 ...newUser._doc,
+                isVerified: newUser.isVerified,
                 password: undefined,
-                confirmPassword: undefined,
+                confirm_Password: undefined,
             },
         })
 
@@ -166,7 +234,7 @@ export const StudentLogin = async (req, res) => {
 
 // Handle student logout
 export const StudentLogout = async (req, res) => {
-    res.clearCookie("userToken");
+    res.clearCookie("usertoken");
     res.status(200).json({success:true, msg: "Logged out successfully"});  
 };
 
@@ -176,31 +244,39 @@ export const StudentLogout = async (req, res) => {
 // Handle student forgot password request
 export const studentforgotPassword = async (req, res) => {
     const {email} = req.body;
-    console.log("Received forgot password request for email:", email); 
-    try{
+    try {
         const newUser = await User.findOne({email});
-        console.log("User found:", newUser); 
         
-        if(!newUser){
-            return res.status(400).json({success:false, msg: "User not found"});
+        if(!newUser) {
+            return res.status(404).json({success: false, msg: "User not found"});
         }
-        // Generate reset token valid for 10 minutes
+
         const resetToken = crypto.randomBytes(20).toString("hex");
-        const restTokenExpire = Date.now() + 10 * 60 * 1000;
+        const resetTokenExpire = Date.now() + 10 * 60 * 1000;
 
         newUser.resetPasswordToken = resetToken;
-        newUser.resetPasswordExpire = restTokenExpire;
-
+        newUser.resetPasswordExpire = resetTokenExpire;
         await newUser.save();
 
-        await sendUserPasswordResetEmail(newUser.email, `${process.env.CLIENT_URL}/reset-password/${resetToken}`);
-        res.status(200).json({success:true, msg: "Reset password email sent successfully"});
+        const resetLink = `${process.env.CLIENT_URL}/auth/student-reset-password/${resetToken}`;
 
-    }catch(error){
+        const mailOptions = {
+            from: process.env.SENDER_EMAIL,
+            to: newUser.email,
+            subject: 'SkillSync - Reset Password',
+            text: `Hello ${newUser.first_Name},\n\nClick the following link to reset your password:\n${resetLink}\n\n
+            Best regards,\nSkillSync Team`
+        };
+
+        await transporter.sendMail(mailOptions);
+        res.status(200).json({success: true, msg: "Reset password email sent successfully"});
+    } catch(error) {
         console.log("Error in forgot password", error);
-        res.status(400).json({success:false, msg: error.message});
+        res.status(500).json({success: false, msg: error.message});
     }
 };
+        
+   
 
 
 
@@ -210,6 +286,11 @@ export const studentresetPassword = async (req, res) => {
     try {
         const {token} = req.params;
         const {password} = req.body;
+
+        if (!password) {
+            return res.status(400).json({success:false, msg: "Password is required"});
+        }
+        // Find user by reset token
         const newUser = await User.findOne({resetPasswordToken: token,
             resetPasswordExpire: {$gt: Date.now()}
         });
@@ -221,18 +302,29 @@ export const studentresetPassword = async (req, res) => {
         // Update password and clear reset token
         const hashedPassword = await bcryptjs.hash(password, 10);
         newUser.password = hashedPassword;
+        newUser.confirm_Password = hashedPassword;
         newUser.resetPasswordToken = undefined;
         newUser.resetPasswordExpire = undefined;
         await newUser.save();
 
-        await sendUserPasswordResetSuccessEmail(newUser.email);
-
+        // Send success email
+        const mailOptions = {
+            from: process.env.SENDER_EMAIL,
+            to: newUser.email,
+            subject: 'SkillSync - Password Reset',
+            text: `Hello ${newUser.first_Name},\n\nYour password has been reset successfully
+            If you did not make this change, please contact support immediately.\n\nBest regards,\nSkillSync Team`
+        };
+        await transporter.sendMail(mailOptions);
         res.status(200).json({success:true, msg: "Password reset successfully"});
-    }catch(error){
+    }
+    catch(error){
         console.log("Error in reset password", error);
         res.status(400).json({success:false, msg: error.message});
     }
-};
+    };
+
+
 
 
 

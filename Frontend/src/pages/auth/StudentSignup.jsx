@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"; // Import useNavigate
 import axios from "axios";
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Building2, GraduationCap } from "lucide-react";
+import toast from 'react-hot-toast';
 
 const StudentSignup = () => {
   const navigate = useNavigate(); 
@@ -14,9 +15,45 @@ const StudentSignup = () => {
     phone_number: "",
     email: "",
     password: "",
-    confirm_password: "",
+    confirm_Password: "",
     state_of_residence: "",
   });
+
+
+  const validateForm = () => {
+    if (!formData.first_Name || !formData.last_Name || !formData.gender || 
+        !formData.date_of_birth || !formData.phone_number || !formData.email || 
+        !formData.password || !formData.confirm_Password || !formData.state_of_residence) {
+      toast.error("All fields are required");
+      return false;
+    }
+  
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error("Invalid email format");
+      return false;
+    }
+  
+    const phoneRegex = /^\+?[1-9]\d{9,11}$/;
+    if (!phoneRegex.test(formData.phone_number)) {
+      toast.error("Invalid phone number format");
+      return false;
+    }
+  
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return false;
+    }
+  
+    if (formData.password !== formData.confirm_Password) {
+      toast.error("Passwords don't match");
+      return false;
+    }
+  
+    return true;
+  };
+
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -27,30 +64,37 @@ const StudentSignup = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent the default form submission behavior
-
+    e.preventDefault();
+  
+    // Basic form validation
+    if (!formData.first_Name || !formData.last_Name || !formData.email || 
+        !formData.password || formData.password !== formData.confirm_Password) {
+      toast.error("Please fill all fields correctly and ensure passwords match.");
+      return;
+    }
+  
     try {
-      // Send form data to the backend (MongoDB)
       const response = await axios.post(
         "http://localhost:5005/api/auth/student-signup",
-        formData
+        formData,
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       );
-
-      // Check if the response indicates success
-      if (response.status === 200) {
-        console.log(response.data); // The response from the backend
-        alert("Account setup successful!"); // Show a success message
-      } else {
-        navigate("/auth/verify-student-email"); // Navigate to the email verification page
-        /*alert(
-          "There was an issue with the account setup. Please try again."
-        );*/
+  
+      if (response.status === 201) {
+        toast.success("Account setup successful!");
+        navigate("/auth/verify-student-email");
       }
     } catch (error) {
-      console.error("There was an error submitting the form!", error);
-      alert("Error submitting form data. Please try again.");
+      console.error("Signup error:", error);
+      toast.error(error.response?.data?.message || "Error submitting form. Please try again.");
     }
-  };
+ };
+
 
   return (
     <div className="h-screen w-screen bg-[#EFF6FF] p-3 flex">
@@ -252,8 +296,8 @@ const StudentSignup = () => {
                             type="password"
                             className="px-4 py-2 rounded-xl border border-[#BCC3D0] w-[232px]"
                             placeholder="••••••••"
-                            name="confirm_password"
-                            value={formData.confirm_password}
+                            name="confirm_Password"
+                            value={formData.confirm_Password}
                             onChange={handleInputChange}
                         />
                     </div>
