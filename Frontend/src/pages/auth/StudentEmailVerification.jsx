@@ -7,7 +7,7 @@ import axios from "axios";
 
 const StudentEmailVerification = () => {
     const [code, setCode] = useState(["", "", "", "", "", ""]);
-    const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
+    const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds
     const [canResend, setCanResend] = useState(false);
     const inputRefs = useRef([]);
     const navigate = useNavigate();
@@ -89,10 +89,17 @@ const StudentEmailVerification = () => {
     // Handle resend OTP
     const handleResendOTP = async () => {
         try {
+            const email = user?.email;
+
+            if(!email) {
+                toast.error("No email found for this account");
+                return;
+            }
+
             const response = await resendstudentVerificationOTP(user.email);
-            if (response.success) {
+            if (response?.success) {
                 toast.success("OTP resent successfully");
-                setTimeLeft(600);
+                setTimeLeft(120);
                 setCanResend(false);
 
                 setCode(["", "", "", "", "", ""]);
@@ -152,9 +159,7 @@ const StudentEmailVerification = () => {
                             ))}
                         </div>
 
-                        {error && (
-                            <p className="text-red-500 font-medium">{error}</p>
-                        )}
+                        
 
                         <div className="flex flex-col items-center gap-4">
                             <button

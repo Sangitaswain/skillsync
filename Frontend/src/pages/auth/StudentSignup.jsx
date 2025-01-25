@@ -5,11 +5,12 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, Building2, GraduationCap } from "lucide-react";
 import toast from 'react-hot-toast';
 
+
 const StudentSignup = () => {
   const navigate = useNavigate(); 
   const [formData, setFormData] = useState({
     first_Name: "",
-    last_Name: "",
+    last_Name: "", 
     gender: "",
     date_of_birth: "",
     phone_number: "",
@@ -306,6 +307,7 @@ const StudentSignup = () => {
                 <button className="w-[476px] bg-primary rounded-xl py-2.5 text-white mt-4">
                     Sign Up
                 </button>
+                
             </form>
         </div>
     </div>

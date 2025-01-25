@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 
 const CompanyEmailVerification = () => {
     const [code, setCode] = useState(["", "", "", "", "", ""]);
-    const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
+    const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds
     const [canResend, setCanResend] = useState(false);
     const inputRefs = useRef([]);
     const navigate = useNavigate();
@@ -85,10 +85,15 @@ const CompanyEmailVerification = () => {
     // Handle resend OTP
     const handleResendOTP = async () => {
         try {
+            const companyEmail = company?.companyEmail;
+            if (!companyEmail) {
+                toast.error("No email found to resend verification code");
+                return;
+            }
             const response = await resendcompanyVerificationOTP(company.companyEmail);
-            if (response.success) {
+            if (response?.success) {
                 toast.success("New verification code sent successfully");
-                setTimeLeft(600); // Reset timer to 10 minutes
+                setTimeLeft(120); // Reset timer to 2 minutes
                 setCanResend(false);
                 // Clear previous code
                 setCode(["", "", "", "", "", ""]);

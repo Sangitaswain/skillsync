@@ -164,14 +164,14 @@ export const resendstudentVerificationOTP = async (req, res) => {
             }
         const newToken = Math.floor(100000 + Math.random() * 900000).toString();
         newUser.verificationToken = newToken;
-        newUser.verificationTokenExpire = Date.now() + 10 * 60 * 1000;
+        newUser.verificationTokenExpire = Date.now() + 2 * 60 * 1000;
         await newUser.save();
         const mailOptions = {
             from: process.env.SENDER_EMAIL,
             to: newUser.email,
             subject: 'SkillSync - New Verification OTP',
             text: `Hello ${newUser.first_Name},\n\nYour new verification OTP is: ${newToken}\n\n
-            This OTP will expire in 10 minutes.\n\nBest regards,\nSkillSync Team`
+            This OTP will expire in 2 minutes.\n\nBest regards,\nSkillSync Team`
         };
         await transporter.sendMail(mailOptions);
         res.status(200).json({
@@ -562,7 +562,7 @@ export const resendcompanyVerificationOTP = async (req, res) => {
         
         // Update company with new token
         company.verificationToken = newToken;
-        company.verificationTokenExpire = Date.now() + 10 * 60 * 1000;
+        company.verificationTokenExpire = Date.now() + 2 * 60 * 1000;
         await company.save();
 
         // Send new OTP email
@@ -572,7 +572,7 @@ export const resendcompanyVerificationOTP = async (req, res) => {
             subject: 'SkillSync - New Verification OTP',
             text: `Dear ${company.companyName},\n\n` +
                   `Your new verification OTP is: ${newToken}\n\n` +
-                  `This OTP will expire in 10 minutes.\n\n` +
+                  `This OTP will expire in 2 minutes.\n\n` +
                   `Best regards,\nSkillSync Team`
         };
 

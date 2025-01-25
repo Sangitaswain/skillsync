@@ -9,6 +9,7 @@ import axios from "axios";
 
 // Enable credentials in axios for handling cookies
 axios.defaults.withCredentials = true;
+axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 // Set API URL based on environment
 const API_URL = import.meta.env.MODE === "development" ? "http://localhost:5005/api/auth" : "/api/auth";
@@ -317,7 +318,7 @@ const useAuthStore = create((set) => ({
         set({ isLoading: true, error: null });
         try {
             const response = await axios.post(
-                `${API_URL}/send-verify-otp`, 
+                `${API_URL}/resend-company-verification-otp`, 
                 { companyEmail },
                 { 
                     withCredentials: true,
@@ -388,9 +389,10 @@ const useAuthStore = create((set) => ({
                 isCheckingAuth: false,
                 error: error.response?.data?.msg || null
             });
-            throw error;
         }
     },
+
+
 
     // Verify company authentication status
     companycheckAuth: async () => {
@@ -497,16 +499,25 @@ const useAuthStore = create((set) => ({
     companyresetpassword: async (token, password) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await axios.post(`${API_URL}/company-reset-password/${token}`, { password }, {withCredentials: true});
-            set({ message: response.data.message, isLoading: false });
+            const response = await axios.post(
+                `${API_URL}/company-reset-password/${token}`,
+                { password },
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            set({ message: "Password reset successful", isLoading: false });
+            return response.data;
         } catch (error) {
             set({
                 isLoading: false,
-                error: error.response.data.message || "Error resetting password",
+                error: error.response?.data?.message || "Error resetting password"
             });
             throw error;
         }
-    },
+    }
 }));
 
 export default useAuthStore;
