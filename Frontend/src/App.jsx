@@ -1,50 +1,75 @@
-import React from 'react'
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast';
+
+// Page Imports
 import LandingPage from './pages/LandingPage'
 import StudentDashboard from './pages/StudentDashboard'
+import CompanyDashboard from './pages/CompanyDashboard'
+
+// Auth Components
 import StudentSignup from './pages/auth/StudentSignup'
-import { Routes, Route, Navigate } from 'react-router-dom'
 import CompanySignup from './pages/auth/CompanySignup'
 import StudentLogin from './pages/auth/StudentLogin'
 import CompanyLogin from './pages/auth/CompanyLogin'
-import { Toaster } from 'react-hot-toast';
-
-import CompanyDashboard from './pages/CompanyDashboard'
 import StudentEmailVerification from './pages/auth/StudentEmailVerification'
 import CompanyEmailVerification from './pages/auth/CompanyEmailVerification'
-import CompanyForgotPassword from './pages/auth/CompanyForgotPassword'
-import CompanyResetPassword from './pages/auth/CompanyResetPassword'
 import StudentForgotPassword from './pages/auth/StudentForgotPassword'
 import StudentResetPassword from './pages/auth/StudentResetPassword'
+import CompanyForgotPassword from './pages/auth/CompanyForgotPassword'
+import CompanyResetPassword from './pages/auth/CompanyResetPassword'
+
+// Store
 import useAuthStore from './store/authStore'
 
-
-  // Protect routes for both types of users
-  const ProtectedCompanyRoute = ({ children }) => {
-    const { isAuthenticated, company, isCheckingAuth } = useAuthStore();
+// Google Auth Callback Component
+const GoogleCallback = () => {
+    const location = useLocation();
+    const { handleGoogleCallback } = useAuthStore();
     
-    console.log('Protected Route State:', { 
-        isAuthenticated, 
-        hasCompany: !!company,
-        isVerified: company?.isVerified,
-        isCheckingAuth 
-    });
+    useEffect(() => {
+        const urlParams = new URLSearchParams(location.search);
+        const code = urlParams.get('code');
+        const error = urlParams.get('error');
+
+        if (code) {
+            handleGoogleCallback(code)
+                .then(() => {
+                    window.location.href = '/auth/student-dashboard';
+                })
+                .catch((error) => {
+                    console.error('Google callback error:', error);
+                    window.location.href = '/auth/student-login?error=google_auth_failed';
+                });
+        } else if (error) {
+            console.error('Google auth error:', error);
+            window.location.href = '/auth/student-login?error=google_auth_failed';
+        }
+    }, [location, handleGoogleCallback]);
+
+    return (
+        <div className="h-screen w-screen flex items-center justify-center">
+            <div className="w-10 h-10 border-4 border-[#1F479A] border-t-transparent rounded-full animate-spin"></div>
+        </div>
+    );
+};
+
+// Route Protection Components
+const ProtectedCompanyRoute = ({ children }) => {
+    const { isAuthenticated, company, isCheckingAuth } = useAuthStore();
     
     if (isCheckingAuth) {
         return null;
     }
 
-    // If authenticated and verified, render children immediately
     if (isAuthenticated && company?.isVerified) {
         return children;
     }
 
-    // Only redirect to login if not authenticated
     if (!isAuthenticated) {
         return <Navigate to="/auth/company-login" replace />;
     }
     
-    // Redirect to verification if authenticated but not verified
     if (!company?.isVerified) {
         return <Navigate to="/auth/verify-company-email" replace />;
     }
@@ -53,113 +78,111 @@ import useAuthStore from './store/authStore'
 };
 
 const ProtectedStudentRoute = ({ children }) => {
-  const { isAuthenticated, user } = useAuthStore();
-  
-  if (!isAuthenticated) {
-      return <Navigate to="/auth/student-login" replace />;
-  }
-  
-  if (!user?.isVerified) {
-      return <Navigate to="/auth/verify-student-email" replace />;
-  }
-  
-  return children;
+    const { isAuthenticated, user } = useAuthStore();
+    
+    if (!isAuthenticated) {
+        return <Navigate to="/auth/student-login" replace />;
+    }
+    
+    if (!user?.isVerified) {
+        return <Navigate to="/auth/verify-student-email" replace />;
+    }
+    
+    return children;
 };
 
-// Redirect authenticated company based on type
+// Redirect Components
 const RedirectAuthenticatedCompany = ({ children }) => {
-  const { isAuthenticated, company } = useAuthStore();
-  
-  if (isAuthenticated && company?.isVerified) {
-      return <Navigate to="/auth/company-dashboard" replace />;
-  }
-  
-  return children;
+    const { isAuthenticated, company } = useAuthStore();
+    
+    if (isAuthenticated && company?.isVerified) {
+        return <Navigate to="/auth/company-dashboard" replace />;
+    }
+    
+    return children;
 };
 
 const RedirectAuthenticatedStudent = ({ children }) => {
-  const { isAuthenticated, user } = useAuthStore();
-  
-  if (isAuthenticated && user?.isVerified) {
-      return <Navigate to="/auth/student-dashboard" replace />;
-  }
-  
-  return children;
+    const { isAuthenticated, user } = useAuthStore();
+    
+    if (isAuthenticated && user?.isVerified) {
+        return <Navigate to="/auth/student-dashboard" replace />;
+    }
+    
+    return children;
 };
 
 function App() {
-  const { isCheckingAuth, companycheckAuth, studentcheckAuth } = useAuthStore();
+    const { isCheckingAuth, companycheckAuth, studentcheckAuth } = useAuthStore();
 
-  useEffect(() => {
-      companycheckAuth();
-      studentcheckAuth();
-  }, [companycheckAuth, studentcheckAuth]);
+    useEffect(() => {
+        companycheckAuth();
+        studentcheckAuth();
+    }, [companycheckAuth, studentcheckAuth]);
 
-  if (isCheckingAuth) return (
-    <div className="h-screen w-screen flex items-center justify-center">
-            <div className="w-10 h-10 border-4 border-[#1F479A] border-t-transparent rounded-full animate-spin"></div>
-        </div>
+    if (isCheckingAuth) {
+        return (
+            <div className="h-screen w-screen flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-[#1F479A] border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <Toaster position="top-center" containerStyle={{left: 350}}/>
+            <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<LandingPage />} />
+                
+                {/* Google Auth Route */}
+                <Route path="/auth/google/callback" element={<GoogleCallback />} />
+                
+                {/* Company Routes */}
+                <Route path="/auth/company-login" element={
+                    <RedirectAuthenticatedCompany>
+                        <CompanyLogin />
+                    </RedirectAuthenticatedCompany>
+                } />
+                <Route path="/auth/company-signup" element={
+                    <RedirectAuthenticatedCompany>
+                        <CompanySignup />
+                    </RedirectAuthenticatedCompany>
+                } />
+                <Route path="/auth/company-dashboard" element={
+                    <ProtectedCompanyRoute>
+                        <CompanyDashboard />
+                    </ProtectedCompanyRoute>
+                } />
+                <Route path="/auth/verify-company-email" element={<CompanyEmailVerification />} />
+                <Route path="/auth/company-forgot-password" element={<CompanyForgotPassword />} />
+                <Route path="/auth/company-reset-password/:token" element={<CompanyResetPassword />} />
+
+                {/* Student Routes */}
+                <Route path="/auth/student-login" element={
+                    <RedirectAuthenticatedStudent>
+                        <StudentLogin />
+                    </RedirectAuthenticatedStudent>
+                } />
+                <Route path="/auth/student-signup" element={
+                    <RedirectAuthenticatedStudent>
+                        <StudentSignup />
+                    </RedirectAuthenticatedStudent>
+                } />
+                <Route path="/auth/student-dashboard" element={
+                    <ProtectedStudentRoute>
+                        <StudentDashboard />
+                    </ProtectedStudentRoute>
+                } />
+                <Route path="/auth/verify-student-email" element={<StudentEmailVerification />} />
+                <Route path="/auth/student-forgot-password" element={<StudentForgotPassword />} />
+                <Route path="/auth/student-reset-password/:token" element={<StudentResetPassword />} />
+
+                {/* Catch all route */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        </>
     );
-
-  
-
-  return (
-    <>
-
-    <Toaster position="top-center"  containerStyle={{left: 350}}/>
-      <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<LandingPage />} />
-          
-          {/* Company Routes */}
-          <Route path="/auth/company-login" element={
-              <RedirectAuthenticatedCompany>
-                  <CompanyLogin />
-              </RedirectAuthenticatedCompany>
-          } />
-          <Route path="/auth/company-signup" element={
-              <RedirectAuthenticatedCompany>
-                  <CompanySignup />
-              </RedirectAuthenticatedCompany>
-          } />
-          <Route path="/auth/company-dashboard" element={
-              <ProtectedCompanyRoute>
-                  <CompanyDashboard />
-              </ProtectedCompanyRoute>
-          } />
-          <Route path="/auth/verify-company-email" element={<CompanyEmailVerification />} />
-  
-          <Route path="/auth/company-forgot-password" element={<CompanyForgotPassword />} />
-          <Route path="/auth/company-reset-password/:token" element={<CompanyResetPassword />} />
-          
-            
-
-          {/* Student Routes */}
-          <Route path="/auth/student-login" element={
-              <RedirectAuthenticatedStudent>
-                  <StudentLogin />
-              </RedirectAuthenticatedStudent>
-          } />
-          <Route path="/auth/student-signup" element={
-              <RedirectAuthenticatedStudent>
-                  <StudentSignup />
-              </RedirectAuthenticatedStudent>
-          } />
-          <Route path="/auth/student-dashboard" element={
-              <ProtectedStudentRoute>
-                  <StudentDashboard />
-              </ProtectedStudentRoute>
-          } />
-          <Route path="/auth/verify-student-email" element={<StudentEmailVerification />} />
-          <Route path="/auth/student-forgot-password" element={<StudentForgotPassword />} />
-          <Route path="/auth/student-reset-password/:token" element={<StudentResetPassword />} />
-
-          {/* Catch all route */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    
-      </>
-  );
-};
+}
 
 export default App;

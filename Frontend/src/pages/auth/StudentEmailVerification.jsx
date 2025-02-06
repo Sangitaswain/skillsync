@@ -96,7 +96,7 @@ const StudentEmailVerification = () => {
                 return;
             }
 
-            const response = await resendstudentVerificationOTP(user.email);
+            const response = await resendstudentVerificationOTP(email);
             if (response?.success) {
                 toast.success("OTP resent successfully");
                 setTimeLeft(120);

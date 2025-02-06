@@ -53,7 +53,34 @@ const userSchema = new mongoose.Schema(
   resetPasswordToken: String,
   resetPasswordExpire: Date,
   verificationToken: String,
-  verificationTokenExpire: Date
+  verificationTokenExpire: Date,
+
+
+  googleId: {
+    type: String,
+    unique: true,
+    },
+
+  googleEmail: {
+    type: String,
+    unique: true,
+    },
+
+    googleDisplayName: {
+      type: String,
+      trim: true
+    },
+    googleProfilePicture: {
+      type: String,
+      trim: true
+    },
+    authMethod: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local'
+    },
+  
+  
   
   },
   { timestamps: true }

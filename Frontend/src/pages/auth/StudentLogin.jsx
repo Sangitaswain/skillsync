@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Building2, GraduationCap } from "lucide-react";
 import useAuthStore from '../../store/authStore';
 import toast from 'react-hot-toast';
-
+import SocialAuthButtons from '../../components/socialauth';
 
 
 const StudentLogin = () => {
@@ -160,6 +160,7 @@ const StudentLogin = () => {
                         
 
                     </form>
+                    <SocialAuthButtons type="Sign In" />
                 </div>
             </div>
         </div>

@@ -4,9 +4,10 @@ import axios from "axios";
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Building2, GraduationCap } from "lucide-react";
 import toast from 'react-hot-toast';
-
+import SocialAuthButtons from "../../components/socialauth";
 
 const StudentSignup = () => {
+  
   const navigate = useNavigate(); 
   const [formData, setFormData] = useState({
     first_Name: "",
@@ -309,6 +310,7 @@ const StudentSignup = () => {
                 </button>
                 
             </form>
+            <SocialAuthButtons type="Sign In" />
         </div>
     </div>
 );

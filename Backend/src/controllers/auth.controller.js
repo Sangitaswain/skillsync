@@ -11,6 +11,7 @@ import { generateUserTokenAndSetCookie } from "../utils/generateUserToken.js";
 import { generateCompanyTokenAndSetCookie } from "../utils/generateCompanyToken.js";
 //import { sendUserVerificationEmail, sendUserWelcomeEmail, sendUserPasswordResetEmail, sendUserPasswordResetSuccessEmail, sendCompanyVerificationEmail, sendCompanyWelcomeEmail, sendCompanyPasswordResetEmail, sendCompanyPasswordResetSuccessEmail  } from "../mailtrap/emails.js";
 import transporter from "../../nodemailer/nodemailer.config.js";
+import passport from 'passport';
 
 
 
@@ -770,3 +771,35 @@ export const companycheckAuth = async (req, res) => {
         res.status(400).json({success:false, msg: error.message});
     }
 };
+
+
+// Add these to auth.controller.js
+
+
+
+// Initiate Google OAuth
+export const initiateGoogleAuth = passport.authenticate('google', {
+    scope: ['email', 'profile']
+});
+
+// Handle Google OAuth callback
+export const handleGoogleCallback = (req, res, next) => {
+    passport.authenticate('google', {
+        failureRedirect: `${process.env.CLIENT_URL}/auth/student-login?error=google_auth_failed`
+    })(req, res, async () => {
+        try {
+            const user = req.user;
+            
+            // Generate token and set cookie
+            generateUserTokenAndSetCookie(res, user._id);
+
+            // Log success and redirect
+            console.log('Google authentication successful for:', user.email);
+            res.redirect(`${process.env.CLIENT_URL}/auth/student-dashboard`);
+        } catch (error) {
+            console.error('Google callback error:', error);
+            res.redirect(`${process.env.CLIENT_URL}/auth/student-login?error=auth_failed`);
+        }
+    });
+};
+

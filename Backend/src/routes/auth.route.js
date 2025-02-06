@@ -1,5 +1,6 @@
 import express from "express";
-import { StudentSignup,verifystudentEmail, resendstudentVerificationOTP, StudentLogin, StudentLogout, studentforgotPassword, studentresetPassword, studentcheckAuth,  CompanySignup ,resendcompanyVerificationOTP,CompanyLogin , CompanyLogout, companyforgotPassword , companyresetPassword, companycheckAuth, verifyCompanyEmail} from "../controllers/auth.controller.js";
+import { StudentSignup,verifystudentEmail, resendstudentVerificationOTP, StudentLogin, StudentLogout, studentforgotPassword, studentresetPassword, studentcheckAuth,  CompanySignup ,resendcompanyVerificationOTP,CompanyLogin , CompanyLogout, companyforgotPassword , companyresetPassword, companycheckAuth, verifyCompanyEmail, initiateGoogleAuth,
+    handleGoogleCallback} from "../controllers/auth.controller.js";
 import { verifyUserToken } from "../middleware/verifyUserToken.js";
 import { verifyCompanyToken } from "../middleware/verifyCompanyToken.js";
 
@@ -15,6 +16,12 @@ router.post("/student-logout", StudentLogout);
 router.post("/student-forgot-password", studentforgotPassword);
 router.post("/student-reset-password/:token", studentresetPassword);
 router.get("/student-check-auth", verifyUserToken, studentcheckAuth);
+
+
+//Add Google OAuth routes
+router.get('/google', initiateGoogleAuth);
+router.get('/google/callback', handleGoogleCallback);
+
 
 router.post("/company-signup", CompanySignup);
 router.post("/resend-company-verification-otp", resendcompanyVerificationOTP);

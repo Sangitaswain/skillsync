@@ -1,9 +1,3 @@
-/**
- * Authentication Store (useAuthStore.js)
- * A Zustand store that manages authentication state and operations for both students and companies
- * Handles login, signup, logout, email verification, and password reset functionality
- */
-
 import { create } from "zustand";
 import axios from "axios";
 
@@ -13,64 +7,94 @@ axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 // Set API URL based on environment
 const API_URL = import.meta.env.MODE === "development" ? "http://localhost:5005/api/auth" : "/api/auth";
-console.log("API_URL:", API_URL);
 
-
-
-
+// Common axios configuration
+const axiosConfig = {
+    withCredentials: true,
+    headers: {
+        'Content-Type': 'application/json'
+    }
+};
 
 const useAuthStore = create((set) => ({
     // Global state properties
-    user: null,                // Stores student user data
-    company: null,             // Stores company user data
-    isAuthenticated: false,    // Authentication status
-    error: null,              // Error message storage
-    isLoading: false,         // Loading state for async operations
-    isCheckingAuth: true,     // Initial auth check status
-    message: null,            // Success/info message storage
+    user: null,                
+    company: null,             
+    isAuthenticated: false,    
+    error: null,              
+    isLoading: false,         
+    isCheckingAuth: true,     
+    message: null,            
 
-    /**
-     * Student Authentication Methods
-     */
-    
-    // Register a new student account
+    // Google Authentication Methods
+    initiateGoogleAuth: () => {
+        try {
+            console.log('Initiating Google Auth with URL:', `${API_URL}/google`);
+            window.location.href = `${API_URL}/google`;
+        } catch (error) {
+            console.error('Google Auth Initiation Error:', error);
+            set({ error: "Failed to initiate Google authentication" });
+            throw error;
+        }
+    },
+
+    handleGoogleCallback: async (code) => {
+        set({ isLoading: true, error: null });
+        try {
+            console.log('Handling Google callback with code');
+            const response = await axios.get(
+                `${API_URL}/google/callback`, 
+                { 
+                    params: { code },
+                    ...axiosConfig 
+                }
+            );
+
+            if (response.data.success) {
+                set({
+                    user: response.data.user,
+                    isAuthenticated: true,
+                    error: null,
+                    isLoading: false
+                });
+                return response.data;
+            }
+            throw new Error(response.data.message || 'Google authentication failed');
+        } catch (error) {
+            console.error('Google Callback Error:', error);
+            set({
+                isAuthenticated: false,
+                user: null,
+                error: error.response?.data?.message || "Google authentication failed",
+                isLoading: false
+            });
+            throw error;
+        }
+    },
+
+    // Student Authentication Methods
     StudentSignup: async (formData) => {
         set({ isLoading: true, error: null });
         try {
             console.log('Attempting signup with URL:', `${API_URL}/student-signup`);
-            const response = await axios.post(`${API_URL}/student-signup`, formData, {
-                withCredentials: true,
-                headers: {
-                    'Content-Type': 'application/json',
-                    }
-                    });
-                    console.log('Signup response:', response);
-                    set({user: response.data.user, isAuthenticated: true, isLoading: false});
-                }catch(error) {
-                    console.error('Full error details:', {
-                        message: error.message,
-                        response: error.response?.data,
-                        status: error.response?.status,
-                        config: error.config
-                    });
-                    set({error: error.response?.data?.message || "Error signing up", isLoading: false});
-                    throw error;
-                    }
-                },
-                 
+            const response = await axios.post(`${API_URL}/student-signup`, formData, axiosConfig);
+            console.log('Signup response:', response);
+            set({user: response.data.user, isAuthenticated: true, isLoading: false});
+            return response.data;
+        } catch(error) {
+            console.error('Signup error:', error);
+            set({error: error.response?.data?.message || "Error signing up", isLoading: false});
+            throw error;
+        }
+    },
 
-    // Login existing student
     StudentLogin: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await axios.post(`${API_URL}/student-login`, 
+            const response = await axios.post(
+                `${API_URL}/student-login`, 
                 { email, password },
-                {
-                    withCredentials: true,
-                    headers: {
-                        "Content-Type": "application/json"
-                    }
-                }
+                axiosConfig
             );
     
             if (response.data.success) {
@@ -81,9 +105,8 @@ const useAuthStore = create((set) => ({
                     isLoading: false 
                 });
                 return response.data;
-            } else {
-                throw new Error(response.data.message || 'Login failed');
             }
+            throw new Error(response.data.message || 'Login failed');
         } catch (error) {
             set({
                 isAuthenticated: false,
@@ -94,36 +117,29 @@ const useAuthStore = create((set) => ({
             throw error;
         }
     },
-        
-        
 
-    // Logout student user
     StudentLogout: async () => {
         set({ isLoading: true, error: null });
-        try{
-            const response = await axios.post(`${API_URL}/student-logout`, {}, {
-                withCredentials: true, // Send cookies with request
-            });
-            if (response && response.data) {
-                set({user:null, isAuthenticated: false, error: null, isLoading: false});
+        try {
+            const response = await axios.post(`${API_URL}/student-logout`, {}, axiosConfig);
+            if (response.data.success) {
+                set({user: null, isAuthenticated: false, error: null, isLoading: false});
                 return true;
-                } else {
-                    throw new Error( 'Logout failed');
-                    }
-                    } catch (error) {
-                        set({error: error.response?.data?.message || "Error logging out", isLoading: false});
-                        throw error;
-                        }
-                        },
+            }
+            throw new Error('Logout failed');
+        } catch (error) {
+            set({error: error.response?.data?.message || "Error logging out", isLoading: false});
+            throw error;
+        }
+    },
 
-    // Verify student email address
     verifystudentEmail: async (code) => {
         set({ isLoading: true, error: null });
         try {
             const response = await axios.post(
                 `${API_URL}/verify-student-email`, 
                 { code },
-                { withCredentials: true }
+                axiosConfig
             );
             
             if (response.data.success) {
@@ -146,19 +162,13 @@ const useAuthStore = create((set) => ({
         }
     },
 
-
     resendstudentVerificationOTP: async (email) => {
         set({ isLoading: true, error: null });
         try {
             const response = await axios.post(
                 `${API_URL}/resend-student-verification-otp`, 
                 { email },
-                { 
-                    withCredentials: true,
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                }
+                axiosConfig
             );
      
             if (response.data.success) {
@@ -171,65 +181,35 @@ const useAuthStore = create((set) => ({
             }
             throw new Error(response.data.msg || "Failed to send verification code");
         } catch (error) {
-            console.error('Resend OTP error:', {
-                status: error.response?.status,
-                data: error.response?.data,
-                message: error.message
-            });
-            
             set({ 
                 error: error.response?.data?.msg || "Failed to send verification code",
                 isLoading: false 
             });
             throw error;
         }
-     },
+    },
 
-    /**
-     * Company Authentication Methods
-     */
-    
-    // Register a new company account
+    // Company Authentication Methods
     CompanySignup: async (formData) => {
         set({ isLoading: true, error: null });
         try {
-            console.log('Attempting signup with URL:', `${API_URL}/company-signup`);
-            const response = await axios.post(`${API_URL}/company-signup`, formData, {
-                withCredentials: true,
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-            console.log('Signup response:', response.data);
+            const response = await axios.post(`${API_URL}/company-signup`, formData, axiosConfig);
             set({ company: response.data.company, isAuthenticated: true, isLoading: false });
+            return response.data;
         } catch (error) {
-            // Enhanced error logging for debugging
-            console.error('Full error details:', {
-                message: error.message,
-                response: error.response?.data,
-                status: error.response?.status,
-                config: error.config
-            });
             set({ error: error.response?.data?.message || "Error signing up", isLoading: false });
             throw error;
         }
     },
 
-    // Login existing company
     CompanyLogin: async (companyEmail, password) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await axios.post(`${API_URL}/company-login`, 
+            const response = await axios.post(
+                `${API_URL}/company-login`, 
                 { companyEmail, password },
-                { 
-                    withCredentials: true,
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                }
+                axiosConfig
             );
-    
-            console.log('Login response:', response.data);
             
             if (response.data.success) {
                 set({
@@ -239,15 +219,9 @@ const useAuthStore = create((set) => ({
                     isLoading: false,
                 });
                 return true;
-            } else {
-                throw new Error(response.data.message || 'Login failed');
             }
+            throw new Error(response.data.message || 'Login failed');
         } catch (error) {
-            console.error('Login error:', {
-                status: error.response?.status,
-                data: error.response?.data,
-                message: error.message
-            });
             set({ 
                 isAuthenticated: false,
                 company: null,
@@ -258,38 +232,29 @@ const useAuthStore = create((set) => ({
         }
     },
 
-    // Logout company user
     CompanyLogout: async () => {
         set({ isLoading: true, error: null });
         try {
-            const response = await axios.post(`${API_URL}/company-logout`, {}, {
-                withCredentials: true
-            });
-
-            if (response && response.data) {
+            const response = await axios.post(`${API_URL}/company-logout`, {}, axiosConfig);
+            if (response.data.success) {
                 set({ company: null, isAuthenticated: false, error: null, isLoading: false });
                 return true;
-            } else {
-                throw new Error("Error logging out");
             }
+            throw new Error("Error logging out");
         } catch (error) {
             set({ error: error.response?.data?.message || "Error logging out", isLoading: false });
             throw error;
         }
     },
 
-    // Verify company email address
-    // In useAuthStore.js
     verifyCompanyEmail: async (code) => {
         set({ isLoading: true, error: null });
         try {
             const response = await axios.post(
                 `${API_URL}/verify-company-email`, 
                 { code },
-                { withCredentials: true }
+                axiosConfig
             );
-            
-            console.log("Verification response:", response.data); // For debugging
     
             if (response.data.success) {
                 set({ 
@@ -297,7 +262,6 @@ const useAuthStore = create((set) => ({
                         ...response.data.company,
                         isVerified: true
                     },
-                    
                     isAuthenticated: true,
                     isLoading: false,
                     error: null
@@ -306,29 +270,19 @@ const useAuthStore = create((set) => ({
             }
             throw new Error(response.data.msg || "Verification failed");
         } catch (error) {
-            const errorMsg = error.response?.data?.msg || "Error verifying email";
-            set({ error: errorMsg, isLoading: false });
+            set({ error: error.response?.data?.msg || "Error verifying email", isLoading: false });
             throw error;
         }
     },
-    
 
-    // Resend verification OTP for company
     resendcompanyVerificationOTP: async (companyEmail) => {
         set({ isLoading: true, error: null });
         try {
             const response = await axios.post(
                 `${API_URL}/resend-company-verification-otp`, 
                 { companyEmail },
-                { 
-                    withCredentials: true,
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                }
+                axiosConfig
             );
-
-            console.log('Resend OTP response:', response.data);
 
             if (response.data.success) {
                 set({ 
@@ -337,16 +291,9 @@ const useAuthStore = create((set) => ({
                     error: null 
                 });
                 return response.data;
-            } else {
-                throw new Error(response.data.msg || "Failed to send verification code");
             }
+            throw new Error(response.data.msg || "Failed to send verification code");
         } catch (error) {
-            console.error('Resend OTP error:', {
-                status: error.response?.status,
-                data: error.response?.data,
-                message: error.message
-            });
-            
             set({ 
                 error: error.response?.data?.msg || "Failed to send verification code",
                 isLoading: false 
@@ -355,22 +302,11 @@ const useAuthStore = create((set) => ({
         }
     },
 
-
-
-    /**
-     * Authentication Check Methods
-     */
-    
-    // Verify student authentication status
+    // Authentication Check Methods
     studentcheckAuth: async () => {
         set({ isCheckingAuth: true, error: null });
         try {
-            const response = await axios.get(`${API_URL}/student-check-auth`, {
-                withCredentials: true,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+            const response = await axios.get(`${API_URL}/student-check-auth`, axiosConfig);
             
             if (response.data && response.data.success) {
                 set({ 
@@ -392,17 +328,10 @@ const useAuthStore = create((set) => ({
         }
     },
 
-
-
-    // Verify company authentication status
     companycheckAuth: async () => {
         set({ isCheckingAuth: true, error: null });
         try {
-            const response = await axios.get(`${API_URL}/company-check-auth`, {
-                withCredentials: true
-            });
-            
-            console.log('Auth check response:', response.data);
+            const response = await axios.get(`${API_URL}/company-check-auth`, axiosConfig);
             
             if (response.data.success && response.data.company) {
                 set({ 
@@ -414,21 +343,10 @@ const useAuthStore = create((set) => ({
                     isCheckingAuth: false,
                     error: null
                 });
-                console.log('Auth state updated:', {
-                    hasCompany: !!response.data.company,
-                    isAuthenticated: true
-                });
             } else {
-                console.log('Invalid auth response:', response.data);
                 throw new Error('Invalid auth response structure');
             }
         } catch (error) {
-            console.error('Auth check error:', {
-                status: error.response?.status,
-                message: error.response?.data?.message || error.message,
-                data: error.response?.data
-            });
-            
             set({ 
                 company: null,
                 error: error.response?.data?.message || null, 
@@ -438,18 +356,14 @@ const useAuthStore = create((set) => ({
         }
     },
 
-    /**
-     * Password Reset Methods
-     */
-    
-    // Request password reset for student
+    // Password Reset Methods
     studentforgotpassword: async (email) => {
         set({ isLoading: true, error: null });
         try {
             const response = await axios.post(
                 `${API_URL}/student-forgot-password`, 
                 { email },
-                { withCredentials: true }
+                axiosConfig
             );
             
             if (response.data) {
@@ -465,48 +379,52 @@ const useAuthStore = create((set) => ({
             throw error;
         }
     },
-    // Request password reset for company
+
     companyforgotpassword: async (companyEmail) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await axios.post(`${API_URL}/company-forgot-password`, { companyEmail });
+            const response = await axios.post(
+                `${API_URL}/company-forgot-password`, 
+                { companyEmail },
+                axiosConfig
+            );
             set({ message: response.data.message, isLoading: false });
+            return response.data;
         } catch (error) {
             set({
                 isLoading: false,
-                error: error.response.data.message || "Error sending reset password email",
+                error: error.response?.data?.message || "Error sending reset password email",
             });
             throw error;
         }
     },
 
-    // Reset student password with token
     studentresetpassword: async (token, password) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await axios.post(`${API_URL}/student-reset-password/${token}`, { password }, {withCredentials: true});
+            const response = await axios.post(
+                `${API_URL}/student-reset-password/${token}`, 
+                { password },
+                axiosConfig
+            );
             set({ message: response.data.message, isLoading: false });
+            return response.data;
         } catch (error) {
             set({
                 isLoading: false,
-                error: error.response.data.message || "Error resetting password",
+                error: error.response?.data?.message || "Error resetting password",
             });
             throw error;
         }
     },
 
-    // Reset company password with token
     companyresetpassword: async (token, password) => {
         set({ isLoading: true, error: null });
         try {
             const response = await axios.post(
                 `${API_URL}/company-reset-password/${token}`,
                 { password },
-                {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                }
+                axiosConfig
             );
             set({ message: "Password reset successful", isLoading: false });
             return response.data;
