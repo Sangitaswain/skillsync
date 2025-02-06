@@ -3,7 +3,12 @@ import jwt from "jsonwebtoken";
 export const verifyUserToken = (req, res, next) => {
     console.log("Received headers:", req.headers);
     console.log("Received cookies:", req.signedCookies);
-    const token = req.signedCookies.usertoken || req.headers.authorization?.split(" ")[1];
+    console.log("Session:", req.session);
+
+    const token = req.signedCookies.usertoken || 
+                 req.headers.authorization?.split(" ")[1] ||
+                 req.session?.token;
+
     console.log("Received user token:", token);
 
     if (!token) {

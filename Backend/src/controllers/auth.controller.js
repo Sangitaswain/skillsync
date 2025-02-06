@@ -783,18 +783,37 @@ export const initiateGoogleAuth = passport.authenticate('google', {
 });
 
 // Handle Google OAuth callback
+// auth.controller.js
+// auth.controller.js
 export const handleGoogleCallback = (req, res, next) => {
     passport.authenticate('google', {
-        failureRedirect: `${process.env.CLIENT_URL}/auth/student-login?error=google_auth_failed`
+        failureRedirect: `${process.env.CLIENT_URL}/auth/student-login?error=google_auth_failed`,
+        session: true
     })(req, res, async () => {
         try {
             const user = req.user;
             
-            // Generate token and set cookie
-            generateUserTokenAndSetCookie(res, user._id);
+            if (!user) {
+                throw new Error('No user found');
+            }
 
-            // Log success and redirect
-            console.log('Google authentication successful for:', user.email);
+            // Generate and set token
+            const token = generateUserTokenAndSetCookie(res, user._id);
+            
+            // Save user to session
+            req.session.user = user;
+            await new Promise((resolve) => req.session.save(resolve));
+
+            // Set cookie headers
+            res.cookie('usertoken', token, {
+                httpOnly: true,
+                secure: false,
+                sameSite: 'lax',
+                maxAge: 24 * 60 * 60 * 1000,
+                path: '/',
+                signed: true
+            });
+
             res.redirect(`${process.env.CLIENT_URL}/auth/student-dashboard`);
         } catch (error) {
             console.error('Google callback error:', error);
@@ -802,4 +821,3 @@ export const handleGoogleCallback = (req, res, next) => {
         }
     });
 };
-

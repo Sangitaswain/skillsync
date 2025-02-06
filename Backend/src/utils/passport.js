@@ -1,9 +1,11 @@
-// config/passport.js
+// passport.js
 import passport from 'passport';
 import { Strategy as OAuth2Strategy } from 'passport-google-oauth2';
 import User from '../models/user.model.js';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
-export const initializeGoogleStrategy = () => {  // Changed to named export
+export const initializeGoogleStrategy = () => {
     passport.serializeUser((user, done) => {
         done(null, user.id);
     });
@@ -16,59 +18,63 @@ export const initializeGoogleStrategy = () => {  // Changed to named export
             done(error, null);
         }
     });
-};
 
-passport.use(new OAuth2Strategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: `${process.env.VITE_API_URL}${process.env.CALLBACK_URL}`, 
-    passReqToCallback: true
-}, async (request, accessToken, refreshToken, profile, done) => {
-    try {
-        // Check if user already exists by Google ID or email
-        let existingUser = await User.findOne({ 
-            $or: [
-                { googleId: profile.id },
-                { email: profile.email }
-            ]
-        });
-
-        if (existingUser) {
-            // Update Google-specific fields if they're missing
-            if (!existingUser.googleId) {
-                existingUser.googleId = profile.id;
-                existingUser.authMethod = 'google';
-                await existingUser.save();
+    passport.use(new OAuth2Strategy({
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: `${process.env.VITE_API_URL}${process.env.CALLBACK_URL}`,
+        passReqToCallback: true
+    }, async (request, accessToken, refreshToken, profile, done) => {
+        try {
+            // First check if user exists with the Google ID
+            let user = await User.findOne({ googleId: profile.id });
+            
+            if (user) {
+                user.lastLogin = new Date();
+                await user.save();
+                return done(null, user);
             }
-            
-            // Update last login
-            existingUser.lastLogin = new Date();
-            await existingUser.save();
-            
-            return done(null, existingUser);
+
+            // Then check if user exists with email
+            user = await User.findOne({ email: profile.email });
+
+            if (user) {
+                // If user exists with email but no Google ID
+                if (!user.googleId) {
+                    user.googleId = profile.id;
+                    user.googleProfilePicture = profile.picture;
+                    user.googleDisplayName = profile.displayName;
+                    user.authProvider = 'google';
+                    user.lastLogin = new Date();
+                    await user.save();
+                }
+                return done(null, user);
+            }
+
+            // Create new user if no existing user found
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), salt);
+
+            const newUser = new User({
+                first_Name: profile.given_name,
+                last_Name: profile.family_name,
+                email: profile.email,
+                password: hashedPassword,
+                confirm_Password: hashedPassword,
+                isVerified: true,
+                googleId: profile.id,
+                googleProfilePicture: profile.picture,
+                googleDisplayName: profile.displayName,
+                authProvider: 'google',
+                lastLogin: new Date()
+            });
+
+            await newUser.save();
+            return done(null, newUser);
+
+        } catch (error) {
+            console.error('Passport strategy error:', error);
+            return done(error, null);
         }
-
-        // Create new user if doesn't exist
-        const newUser = new User({
-            first_Name: profile.given_name,
-            last_Name: profile.family_name,
-            email: profile.email,
-            password: profile.id, // Using Google ID as password
-            confirm_Password: profile.id,
-            isVerified: true, // Google accounts are pre-verified
-            gender: "not_specified",
-            date_of_birth: new Date(),
-            phone_number: "not_specified",
-            state_of_residence: "not_specified",
-            googleId: profile.id,
-            authMethod: 'google',
-            lastLogin: new Date()
-        });
-
-        await newUser.save();
-        return done(null, newUser);
-    } catch (error) {
-        console.error('Passport strategy error:', error);
-        return done(error, null);
-    }
-}));
+    }));
+};
