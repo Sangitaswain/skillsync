@@ -51,12 +51,21 @@ const userSchema = new mongoose.Schema({
     resetPasswordExpire: Date,
     verificationToken: String,
     verificationTokenExpire: Date,
+
+    // Google Auth Fields
     googleId: String,
     googleProfilePicture: String,
     googleDisplayName: String,
+
+    // Microsoft Auth Fields
+    microsoftId: String,
+    microsoftProfilePicture: String,
+    microsoftDisplayName: String,
+
+    // Auth Provider - Updated to include Microsoft
     authProvider: {
         type: String,
-        enum: ['local', 'google'],
+        enum: ['local', 'google', 'microsoft'],
         default: 'local'
     }
 }, { timestamps: true });

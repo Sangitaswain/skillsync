@@ -20,17 +20,19 @@ const SocialAuthButtons = ({ type = "Sign In" }) => {
         }
     };
 
-    const handleMicrosoftAuth = () => {
-        try {
-            setIsLoading(prev => ({ ...prev, microsoft: true }));
-            const microsoftAuthUrl = `${import.meta.env.VITE_API_URL}/api/auth/microsoft`;
-            window.location.href = microsoftAuthUrl;
-        } catch (error) {
-            setIsLoading(prev => ({ ...prev, microsoft: false }));
-            toast.error("Failed to connect with Microsoft");
-            console.error("Microsoft auth error:", error);
-        }
-    };
+    // Updated handleMicrosoftAuth function in your SocialAuthButtons component
+
+const handleMicrosoftAuth = () => {
+    try {
+        setIsLoading(prev => ({ ...prev, microsoft: true }));
+        const microsoftAuthUrl = `${import.meta.env.VITE_API_URL}/api/auth/microsoft`;
+        window.location.href = microsoftAuthUrl;
+    } catch (error) {
+        setIsLoading(prev => ({ ...prev, microsoft: false }));
+        toast.error("Failed to connect with Microsoft");
+        console.error("Microsoft auth error:", error);
+    }
+};
 
     return (
         <div className="w-[476px] mt-4">

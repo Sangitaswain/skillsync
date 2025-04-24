@@ -1,4 +1,3 @@
-// Import required models for database operations
 import Company from "../models/company.model.js";
 import User from "../models/user.model.js"
 
@@ -9,11 +8,8 @@ import crypto from "crypto";
 // Import utility functions for token generation and email sending
 import { generateUserTokenAndSetCookie } from "../utils/generateUserToken.js";
 import { generateCompanyTokenAndSetCookie } from "../utils/generateCompanyToken.js";
-//import { sendUserVerificationEmail, sendUserWelcomeEmail, sendUserPasswordResetEmail, sendUserPasswordResetSuccessEmail, sendCompanyVerificationEmail, sendCompanyWelcomeEmail, sendCompanyPasswordResetEmail, sendCompanyPasswordResetSuccessEmail  } from "../mailtrap/emails.js";
 import transporter from "../../nodemailer/nodemailer.config.js";
 import passport from 'passport';
-
-
 
 // Student Authentication Controllers
 
@@ -88,8 +84,6 @@ export const StudentSignup = async (req, res) => {
         // Generate JWT and send verification emails
         generateUserTokenAndSetCookie(res,newUser._id);
 
-      
-
         res.status(201).json({ success: true, user :newUser ,message: "User created successfully",
             newUser: {
                 ...newUser._doc,
@@ -105,9 +99,6 @@ export const StudentSignup = async (req, res) => {
         res.status(400).json({success:false, msg: error.message});
     }
 };
-
-
-
 
 // Verify student email address
 export const verifystudentEmail = async (req, res) => {
@@ -148,9 +139,6 @@ export const verifystudentEmail = async (req, res) => {
             });
         }
     };
-
-
-
 
 // Resend OTP if needed
 export const resendstudentVerificationOTP = async (req, res) => {
@@ -193,7 +181,7 @@ export const StudentLogin = async (req, res) => {
     const {email, password} = req.body;
     if (!email || !password) {
         return res.status(400).json({ success: false, msg: "All fields are required" });
-        }
+    }
     console.log("Received login request for email:", {email});
     try {
         // Find user and verify password
@@ -201,6 +189,15 @@ export const StudentLogin = async (req, res) => {
         if(!newUser){
             return res.status(400).json({success:false, msg: "Invalid credentials"});
         }
+
+        // Check if the user registered through Google
+        if (newUser.authProvider === 'google') {
+            return res.status(400).json({
+                success: false, 
+                msg: "This email is registered with Google. Please use Google Sign-In instead."
+            });
+        }
+        
         const isPasswordValid = await bcryptjs.compare(password, newUser.password);
         if(!isPasswordValid){
             return res.status(400).json({success:false, msg: "Invalid credentials"});
@@ -229,18 +226,27 @@ export const StudentLogin = async (req, res) => {
     }
 };
 
-
-
-
-
 // Handle student logout
 export const StudentLogout = async (req, res) => {
-    res.clearCookie("usertoken");
-    res.status(200).json({success:true, msg: "Logged out successfully"});  
+    try {
+        // Clear cookies
+        res.clearCookie("usertoken");
+        
+        // Also destroy the session if it exists
+        if (req.session) {
+            req.session.destroy((err) => {
+                if (err) {
+                    console.error("Session destruction error:", err);
+                }
+            });
+        }
+        
+        res.status(200).json({success: true, msg: "Logged out successfully"});
+    } catch (error) {
+        console.error("Logout error:", error);
+        res.status(500).json({success: false, msg: "Error during logout"});
+    }
 };
-
-
-
 
 // Handle student forgot password request
 export const studentforgotPassword = async (req, res) => {
@@ -276,11 +282,6 @@ export const studentforgotPassword = async (req, res) => {
         res.status(500).json({success: false, msg: error.message});
     }
 };
-        
-   
-
-
-
 
 // Handle student password reset
 export const studentresetPassword = async (req, res) => {
@@ -323,11 +324,7 @@ export const studentresetPassword = async (req, res) => {
         console.log("Error in reset password", error);
         res.status(400).json({success:false, msg: error.message});
     }
-    };
-
-
-
-
+};
 
 // Check student authentication status
 export const studentcheckAuth = async (req, res) => {
@@ -344,13 +341,6 @@ export const studentcheckAuth = async (req, res) => {
         res.status(400).json({success:false, msg: error.message});
     }
 };  
-
-
-
-
-
-
-
 
 // Company Authentication Controllers
 
@@ -542,9 +532,6 @@ export const verifyCompanyEmail = async (req, res) => {
     }
 };
 
-
-
-
 // Resend OTP if needed
 export const resendcompanyVerificationOTP = async (req, res) => {
     try {
@@ -634,17 +621,11 @@ export const CompanyLogin = async (req, res) => {
     }
 };
 
-
-
-
-
 // Handle company logout
 export const CompanyLogout = async (req, res) => {
-  
     res.clearCookie("companytoken");
     res.status(200).json({success:true, msg: "Logged out successfully"});  
 };
-
 
 // Handle company forgot password request
 export const companyforgotPassword = async (req, res) => {
@@ -692,8 +673,6 @@ export const companyforgotPassword = async (req, res) => {
         res.status(400).json({ success: false, msg: error.message });
     }
 };
-
-
 
 // Handle company password reset
 export const companyresetPassword = async (req, res) => {
@@ -754,7 +733,6 @@ export const companyresetPassword = async (req, res) => {
     }
 };
 
-
 // Check company authentication status
 export const companycheckAuth = async (req, res) => {
     try{
@@ -772,26 +750,24 @@ export const companycheckAuth = async (req, res) => {
     }
 };
 
-
-// Add these to auth.controller.js
-
-
-
 // Initiate Google OAuth
 export const initiateGoogleAuth = passport.authenticate('google', {
     scope: ['email', 'profile']
 });
 
 // Handle Google OAuth callback
-// auth.controller.js
-// auth.controller.js
 export const handleGoogleCallback = (req, res, next) => {
+    console.log('Google callback handler initiated');
+    
     passport.authenticate('google', {
-        failureRedirect: `${process.env.CLIENT_URL}/auth/student-login?error=google_auth_failed`,
+        failureRedirect: process.env.NODE_ENV === 'production'
+            ? `${process.env.CLIENT_URL}/auth/student-login?error=google_auth_failed`
+            : 'http://localhost:5173/auth/student-login?error=google_auth_failed',
         session: true
     })(req, res, async () => {
         try {
             const user = req.user;
+            console.log('Google auth completed, user:', user ? user.email : 'none');
             
             if (!user) {
                 throw new Error('No user found');
@@ -799,24 +775,92 @@ export const handleGoogleCallback = (req, res, next) => {
 
             // Generate and set token
             const token = generateUserTokenAndSetCookie(res, user._id);
+            console.log('Generated token for user:', user._id);
             
             // Save user to session
             req.session.user = user;
             await new Promise((resolve) => req.session.save(resolve));
+            console.log('Session saved for Google user');
 
-            // Set cookie headers
-            res.cookie('usertoken', token, {
+            // Set cookie headers with environment-aware options
+            const cookieOptions = {
                 httpOnly: true,
-                secure: false,
-                sameSite: 'lax',
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
                 maxAge: 24 * 60 * 60 * 1000,
-                path: '/',
-                signed: true
-            });
+                path: '/'
+            };
+
+            if (process.env.COOKIE_SECRET) {
+                cookieOptions.signed = true;
+            }
+
+            res.cookie('usertoken', token, cookieOptions);
+            console.log('Cookie set for Google user');
+
+            // Redirect to dashboard with environment-aware URL
+            const redirectURL = process.env.NODE_ENV === 'production'
+                ? `${process.env.CLIENT_URL}/auth/student-dashboard`
+                : 'http://localhost:5173/auth/student-dashboard';
+                
+            console.log('Redirecting to:', redirectURL);
+            res.redirect(redirectURL);
+        } catch (error) {
+            console.error('Google callback error:', error);
+            const errorURL = process.env.NODE_ENV === 'production'
+                ? `${process.env.CLIENT_URL}/auth/student-login?error=auth_failed`
+                : 'http://localhost:5173/auth/student-login?error=auth_failed';
+            console.log('Redirecting to error page:', errorURL);
+            res.redirect(errorURL);
+        }
+    });
+};
+
+// Initiate Microsoft OAuth
+export const initiateMicrosoftAuth = passport.authenticate('microsoft', {
+    prompt: 'select_account',
+    scope: ['user.read', 'profile', 'email', 'openid']
+}); 
+
+// Handle Microsoft OAuth callback
+export const handleMicrosoftCallback = (req, res, next) => {
+    passport.authenticate('microsoft', {
+        failureRedirect: `${process.env.CLIENT_URL}/auth/student-login?error=microsoft_auth_failed`,
+        session: true
+    })(req, res, async () => {
+        try {
+            const user = req.user;
+            console.log('Microsoft callback user:', user?.email);
+
+            if (!user) {
+                console.error('No user found in Microsoft callback');
+                throw new Error('No user found');
+            }
+
+            // Generate token and set cookie
+            const token = generateUserTokenAndSetCookie(res, user._id);
+            console.log('Generated token for user:', user._id);
+
+            // Set session
+            req.session.user = user;
+            await new Promise((resolve) => req.session.save(resolve));
+            console.log('Session saved for user:', user._id);
+
+            // Set cookie with specific options for development/production
+            const cookieOptions = {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+                maxAge: 24 * 60 * 60 * 1000,
+                path: '/'
+            };
+
+            res.cookie('usertoken', token, cookieOptions);
+            console.log('Cookie set for user:', user._id);
 
             res.redirect(`${process.env.CLIENT_URL}/auth/student-dashboard`);
         } catch (error) {
-            console.error('Google callback error:', error);
+            console.error('Microsoft callback error:', error);
             res.redirect(`${process.env.CLIENT_URL}/auth/student-login?error=auth_failed`);
         }
     });

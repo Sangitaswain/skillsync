@@ -25,7 +25,39 @@ import useAuthStore from './store/authStore'
 // Google Auth Callback Component
 const GoogleCallback = () => {
     const location = useLocation();
-    const { handleGoogleCallback } = useAuthStore();
+    
+    useEffect(() => {
+        // Check if the URL has parameters that indicate an error
+        const urlParams = new URLSearchParams(location.search);
+        const error = urlParams.get('error');
+        const code = urlParams.get('code');
+        
+        console.log('Google callback received:', { hasError: !!error, hasCode: !!code });
+
+        if (error) {
+            console.error('Google auth error:', error);
+            window.location.href = '/auth/student-login?error=google_auth_failed';
+        } else if (!code) {
+            // If there's no code and no error, there might be an issue with the callback
+            console.error('Google callback missing required parameters');
+            window.location.href = '/auth/student-login?error=invalid_callback';
+        }
+        // Backend will handle successful auth and redirect to dashboard
+    }, [location]);
+
+    return (
+        <div className="h-screen w-screen flex items-center justify-center">
+            <div className="flex flex-col items-center">
+                <div className="w-10 h-10 border-4 border-[#1F479A] border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-gray-600">Processing your Google login...</p>
+            </div>
+        </div>
+    );
+};
+
+const MicrosoftCallback = () => {
+    const location = useLocation();
+    const { handleMicrosoftCallback } = useAuthStore();
     
     useEffect(() => {
         const urlParams = new URLSearchParams(location.search);
@@ -33,19 +65,19 @@ const GoogleCallback = () => {
         const error = urlParams.get('error');
 
         if (code) {
-            handleGoogleCallback(code)
+            handleMicrosoftCallback(code)
                 .then(() => {
                     window.location.href = '/auth/student-dashboard';
                 })
                 .catch((error) => {
-                    console.error('Google callback error:', error);
-                    window.location.href = '/auth/student-login?error=google_auth_failed';
+                    console.error('Microsoft callback error:', error);
+                    window.location.href = '/auth/student-login?error=microsoft_auth_failed';
                 });
         } else if (error) {
-            console.error('Google auth error:', error);
-            window.location.href = '/auth/student-login?error=google_auth_failed';
+            console.error('Microsoft auth error:', error);
+            window.location.href = '/auth/student-login?error=microsoft_auth_failed';
         }
-    }, [location, handleGoogleCallback]);
+    }, [location, handleMicrosoftCallback]);
 
     return (
         <div className="h-screen w-screen flex items-center justify-center">
@@ -53,6 +85,7 @@ const GoogleCallback = () => {
         </div>
     );
 };
+
 
 // Route Protection Components
 const ProtectedCompanyRoute = ({ children }) => {
@@ -78,7 +111,11 @@ const ProtectedCompanyRoute = ({ children }) => {
 };
 
 const ProtectedStudentRoute = ({ children }) => {
-    const { isAuthenticated, user } = useAuthStore();
+    const { isAuthenticated, user, isCheckingAuth } = useAuthStore();
+    
+    if (isCheckingAuth) {
+        return null;
+    }
     
     if (!isAuthenticated) {
         return <Navigate to="/auth/student-login" replace />;
@@ -177,6 +214,7 @@ function App() {
                 <Route path="/auth/verify-student-email" element={<StudentEmailVerification />} />
                 <Route path="/auth/student-forgot-password" element={<StudentForgotPassword />} />
                 <Route path="/auth/student-reset-password/:token" element={<StudentResetPassword />} />
+                <Route path="/auth/microsoft/callback" element={<MicrosoftCallback />} />
 
                 {/* Catch all route */}
                 <Route path="*" element={<Navigate to="/" replace />} />

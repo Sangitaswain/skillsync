@@ -38,38 +38,11 @@ const useAuthStore = create((set) => ({
         }
     },
 
-    handleGoogleCallback: async (code) => {
-        set({ isLoading: true, error: null });
-        try {
-            console.log('Handling Google callback with code');
-            const response = await axios.get(
-                `${API_URL}/google/callback`, 
-                { 
-                    params: { code },
-                    ...axiosConfig 
-                }
-            );
-
-            if (response.data.success) {
-                set({
-                    user: response.data.user,
-                    isAuthenticated: true,
-                    error: null,
-                    isLoading: false
-                });
-                return response.data;
-            }
-            throw new Error(response.data.message || 'Google authentication failed');
-        } catch (error) {
-            console.error('Google Callback Error:', error);
-            set({
-                isAuthenticated: false,
-                user: null,
-                error: error.response?.data?.message || "Google authentication failed",
-                isLoading: false
-            });
-            throw error;
-        }
+    // We don't need this method anymore since auth is handled server-side
+    // Keep it as a no-op for backward compatibility
+    handleGoogleCallback: async () => {
+        console.log('Google callback is now handled server-side');
+        return null;
     },
 
     // Student Authentication Methods
@@ -123,7 +96,18 @@ const useAuthStore = create((set) => ({
         try {
             const response = await axios.post(`${API_URL}/student-logout`, {}, axiosConfig);
             if (response.data.success) {
-                set({user: null, isAuthenticated: false, error: null, isLoading: false});
+                // Clear all auth state completely
+                set({
+                    user: null, 
+                    company: null,
+                    isAuthenticated: false, 
+                    error: null, 
+                    isLoading: false
+                });
+                
+                // Also clear cookies on the client side if needed
+                document.cookie = "usertoken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                
                 return true;
             }
             throw new Error('Logout failed');
@@ -435,7 +419,55 @@ const useAuthStore = create((set) => ({
             });
             throw error;
         }
+    },
+
+    // Microsoft Authentication Methods
+    initiateMicrosoftAuth: () => {
+        try {
+            console.log('Initiating Microsoft Auth with URL:', `${API_URL}/microsoft`);
+            window.location.href = `${API_URL}/microsoft`;
+        } catch (error) {
+            console.error('Microsoft Auth Initiation Error:', error);
+            set({ error: "Failed to initiate Microsoft authentication" });
+            throw error;
+        }
+    },
+
+    handleMicrosoftCallback: async (code) => {
+        set({ isLoading: true, error: null });
+        try {
+            const response = await axios.get(
+                `${API_URL}/microsoft/callback`,
+                {
+                    params: { code },
+                    ...axiosConfig
+                }
+            );
+
+            if (response.data.success) {
+                set({
+                    user: response.data.user,
+                    isAuthenticated: true,
+                    error: null,
+                    isLoading: false
+                });
+                return response.data;
+            }
+            throw new Error(response.data.message || 'Microsoft authentication failed');
+        } catch (error) {
+            console.error('Microsoft Callback Error:', error);
+            set({
+                isAuthenticated: false,
+                user: null,
+                error: error.response?.data?.message || "Microsoft authentication failed",
+                isLoading: false
+            });
+            throw error;
+        }
     }
 }));
+
+
+
 
 export default useAuthStore;

@@ -1,6 +1,6 @@
 import express from "express";
 import { StudentSignup,verifystudentEmail, resendstudentVerificationOTP, StudentLogin, StudentLogout, studentforgotPassword, studentresetPassword, studentcheckAuth,  CompanySignup ,resendcompanyVerificationOTP,CompanyLogin , CompanyLogout, companyforgotPassword , companyresetPassword, companycheckAuth, verifyCompanyEmail, initiateGoogleAuth,
-    handleGoogleCallback} from "../controllers/auth.controller.js";
+    handleGoogleCallback, handleMicrosoftCallback, initiateMicrosoftAuth} from "../controllers/auth.controller.js";
 import { verifyUserToken } from "../middleware/verifyUserToken.js";
 import { verifyCompanyToken } from "../middleware/verifyCompanyToken.js";
 
@@ -23,6 +23,13 @@ router.get('/google', initiateGoogleAuth);
 router.get('/google/callback', handleGoogleCallback);
 
 
+// Add these routes to your auth.routes.js
+
+// Microsoft OAuth routes
+router.get('/microsoft', initiateMicrosoftAuth);
+router.get('/microsoft/callback', handleMicrosoftCallback);
+
+
 router.post("/company-signup", CompanySignup);
 router.post("/resend-company-verification-otp", resendcompanyVerificationOTP);
 router.post("/verify-company-email",verifyCompanyEmail);
@@ -33,4 +40,3 @@ router.post("/company-reset-password/:token", companyresetPassword);
 router.get("/company-check-auth", verifyCompanyToken, companycheckAuth);
 
 export default router;
-
